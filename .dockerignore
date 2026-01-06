@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 文档
+*.md
+docs/
+changelog.md
+技术方案设计.md
+技术路线-*.md
+
+# 测试
+tests/
+test/
+*.test.*
+*.spec.*
+coverage/
+.nyc_output/
+
+# 构建产物
+dist/
+build/
+target/
+.output/
+.nuxt/
+.next/
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# 其他
+.cursorrules
+scripts/

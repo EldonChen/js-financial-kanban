@@ -1,0 +1,136 @@
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+
+# 编辑器
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# 日志文件
+*.log
+logs/
+*.log.*
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/
+
+# 前端 (Node.js / Nuxt.js)
+node_modules/
+.nuxt/
+.output/
+dist/
+.nitro/
+.cache/
+.pnpm-store/
+.pnpm-debug.log*
+yarn-error.log
+npm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+.pnpm-debug.log*
+.yarn/
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+ENV/
+env/
+.uv/
+uv.lock
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+*.pdb
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+
+# MongoDB
+*.db
+*.sqlite
+*.sqlite3
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+*.lcov
+
+# 构建输出
+build/
+dist/
+out/
+.next/
+.nuxt/
+.output/
+
+# 文档生成
+docs/_build/
+docs/.doctrees/
+
+# 其他
+*.bak
+*.backup
+*.old

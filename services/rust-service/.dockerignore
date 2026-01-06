@@ -1,0 +1,30 @@
+# Rust 构建产物
+target/
+Cargo.lock
+
+# 测试
+tests/
+*.test.rs
+*.rs.bk
+
+# 文档
+*.md
+README.md
+
+# 环境变量
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 日志
+*.log
+
+# 临时文件
+tmp/
+temp/
+*.tmp

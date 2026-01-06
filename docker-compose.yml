@@ -1,0 +1,139 @@
+services:
+  # MongoDB 数据库
+  mongodb:
+    image: mongo:7
+    container_name: financial-kanban-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: financial_kanban
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - financial-kanban-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Python FastAPI 服务
+  python-service:
+    build:
+      context: ./services/python-service
+      dockerfile: Dockerfile
+    container_name: financial-kanban-python-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017
+      DATABASE_NAME: financial_kanban
+      PORT: 8000
+      HOST: 0.0.0.0
+      ENVIRONMENT: production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - financial-kanban-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Node.js Nest.js 服务
+  node-service:
+    build:
+      context: ./services/node-service
+      dockerfile: Dockerfile
+    container_name: financial-kanban-node-service
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017
+      DATABASE_NAME: financial_kanban
+      PORT: 3000
+      NODE_ENV: production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - financial-kanban-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Rust Axum 服务
+  rust-service:
+    build:
+      context: ./services/rust-service
+      dockerfile: Dockerfile
+    container_name: financial-kanban-rust-service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017
+      DATABASE_NAME: financial_kanban
+      PORT: 8080
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - financial-kanban-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Nuxt.js 前端
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NUXT_PUBLIC_PYTHON_API_URL=http://localhost:8000
+        - NUXT_PUBLIC_NODE_API_URL=http://localhost:3000
+        - NUXT_PUBLIC_RUST_API_URL=http://localhost:8080
+    container_name: financial-kanban-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      # 前端通过浏览器访问，需要使用宿主机的 localhost
+      NUXT_PUBLIC_PYTHON_API_URL: http://localhost:8000
+      NUXT_PUBLIC_NODE_API_URL: http://localhost:3000
+      NUXT_PUBLIC_RUST_API_URL: http://localhost:8080
+    depends_on:
+      python-service:
+        condition: service_healthy
+      node-service:
+        condition: service_healthy
+      rust-service:
+        condition: service_healthy
+    networks:
+      - financial-kanban-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  financial-kanban-network:
+    driver: bridge
