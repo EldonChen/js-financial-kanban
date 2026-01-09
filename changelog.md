@@ -288,3 +288,953 @@ services:
 - 构建上下文已优化，但首次构建仍需要下载基础镜像
 - 所有服务都配置了健康检查，确保服务正常运行
 - MongoDB 数据使用 Volume 持久化，删除容器不会丢失数据
+
+## Commit-03f97f8 修复 MongoDB 数据库对象布尔值判断错误
+
+### 主要变更点
+- 修复了 Python 股票信息服务中 MongoDB 数据库对象的布尔值判断错误
+- 修复了 `/api/v1/stocks` 接口返回 500 错误的问题
+
+### 详细变更说明
+
+#### 问题原因
+MongoDB 的 `AsyncIOMotorDatabase` 对象不支持直接的布尔值判断（如 `if db:` 或 `db or ...`），必须使用 `is not None` 或 `is None` 进行比较。当代码尝试对数据库对象进行布尔值判断时，会抛出错误：
+```
+Database objects do not implement truth value testing or bool(). 
+Please compare with None instead: database is not None
+```
+
+#### 修复内容
+1. **`services/py-stock-info-service/app/services/stock_service.py`** (第 28 行)
+   - 将 `self.db = db or get_database()` 改为 `self.db = db if db is not None else get_database()`
+   - 避免对数据库对象进行布尔值判断
+
+2. **`services/py-stock-info-service/app/database.py`** (第 22 行)
+   - 将 `if client:` 改为 `if client is not None:`
+   - 保持代码风格一致性，避免潜在问题
+
+### 关键代码片段
+
+**修复前**:
+```python
+# stock_service.py
+self.db = db or get_database()  # ❌ 错误：对数据库对象进行布尔值判断
+
+# database.py
+if client:  # ⚠️ 潜在问题：对客户端对象进行布尔值判断
+    client.close()
+```
+
+**修复后**:
+```python
+# stock_service.py
+self.db = db if db is not None else get_database()  # ✅ 正确：使用 is not None 比较
+
+# database.py
+if client is not None:  # ✅ 正确：使用 is not None 比较
+    client.close()
+```
+
+### 注意事项
+- 在使用 Motor（MongoDB 异步驱动）时，所有数据库相关对象（AsyncIOMotorClient、AsyncIOMotorDatabase、AsyncIOMotorCollection）都不支持布尔值判断
+- 必须使用 `is not None` 或 `is None` 进行比较
+- 此修复解决了股票列表接口的 500 错误，接口现在可以正常返回数据
+
+## Commit-9aa4687 添加删除股票端点
+
+### 主要变更点
+- 新增删除指定股票的 API 端点：`DELETE /api/v1/stocks/{ticker}`
+- 新增删除所有股票的 API 端点：`DELETE /api/v1/stocks/all`
+- 在服务层添加 `delete_all_stocks` 方法
+
+### 详细变更说明
+
+#### 新增 API 端点
+1. **删除指定股票** - `DELETE /api/v1/stocks/{ticker}`
+   - 删除前会先检查股票是否存在
+   - 如果股票不存在，返回 404 错误
+   - 删除成功后返回成功消息和股票代码
+
+2. **删除所有股票** - `DELETE /api/v1/stocks/all`
+   - 删除数据库中的所有股票记录
+   - 返回删除的记录数量统计
+   - 使用 `/all` 路径避免与 `/{ticker}` 路由冲突
+
+#### 服务层实现
+- **`delete_all_stocks` 方法**：
+  - 使用 `delete_many({})` 删除所有股票记录
+  - 返回删除的记录数量
+  - 记录日志信息
+
+- **`delete_stock` 方法**（已存在）：
+  - 使用 `delete_one` 删除指定股票
+  - 返回是否删除成功
+
+### 关键代码片段
+
+**路由端点**:
+```python
+@router.delete("/{ticker}", response_model=dict)
+async def delete_stock(ticker: str):
+    """删除指定股票."""
+    # 先检查股票是否存在
+    stock = await stock_service.get_stock_by_ticker(ticker)
+    if stock is None:
+        raise HTTPException(status_code=404, detail=f"股票 {ticker} 不存在")
+    # 删除股票
+    deleted = await stock_service.delete_stock(ticker)
+    # ...
+
+@router.delete("/all", response_model=dict)
+async def delete_all_stocks():
+    """删除所有股票."""
+    result = await stock_service.delete_all_stocks()
+    # ...
+```
+
+**服务层方法**:
+```python
+async def delete_all_stocks(self) -> Dict[str, Any]:
+    """删除所有股票数据."""
+    result = await self.collection.delete_many({})
+    deleted_count = result.deleted_count
+    logger.info(f"删除所有股票完成，共删除 {deleted_count} 条记录")
+    return {"deleted_count": deleted_count}
+```
+
+### 注意事项
+- 删除操作是永久性的，无法恢复
+- 删除所有股票操作会清空整个 stocks 集合
+- 建议在生产环境中添加权限验证或确认机制
+- 删除指定股票前会先检查股票是否存在，提供更好的错误提示
+
+## Commit-8ff0c82 修复删除所有股票路由匹配问题
+
+### 主要变更点
+- 修复了 `DELETE /api/v1/stocks/all` 路由匹配错误
+- 调整路由顺序，确保 FastAPI 正确匹配 `/all` 路径
+
+### 详细变更说明
+
+#### 问题原因
+在 FastAPI 中，路由的匹配顺序很重要。当 `DELETE /{ticker}` 路由在 `DELETE /all` 之前定义时，FastAPI 会先匹配 `/{ticker}` 路由，将 `all` 当作 `ticker` 参数，导致访问 `DELETE /api/v1/stocks/all` 时返回 "股票 all 不存在" 的错误。
+
+#### 修复方案
+将 `DELETE /all` 路由移到 `DELETE /{ticker}` 之前，这样 FastAPI 会先匹配更具体的 `/all` 路由，而不是将其作为路径参数。
+
+### 关键代码片段
+
+**修复前（错误的路由顺序）**:
+```python
+@router.delete("/{ticker}", response_model=dict)  # ❌ 先定义，会匹配 /all
+async def delete_stock(ticker: str):
+    # ...
+
+@router.delete("/all", response_model=dict)  # ❌ 后定义，无法匹配
+async def delete_all_stocks():
+    # ...
+```
+
+**修复后（正确的路由顺序）**:
+```python
+@router.delete("/all", response_model=dict)  # ✅ 先定义，优先匹配
+async def delete_all_stocks():
+    # ...
+
+@router.delete("/{ticker}", response_model=dict)  # ✅ 后定义，匹配其他路径
+async def delete_stock(ticker: str):
+    # ...
+```
+
+### 注意事项
+- 在 FastAPI 中，更具体的路由（如 `/all`）必须放在参数路由（如 `/{ticker}`）之前
+- 路由匹配是按照定义顺序进行的，第一个匹配的路由会被使用
+- 这是一个常见的 FastAPI 路由设计陷阱，需要注意路由顺序
+
+## Commit-b98398d 修复股票更新时 created_at 字段冲突错误
+
+### 主要变更点
+- 修复了股票更新接口 `POST /api/v1/stocks/{ticker}/update` 的 MongoDB 更新冲突错误
+- 解决了 `created_at` 字段在 `$set` 和 `$setOnInsert` 操作中的冲突问题
+
+### 详细变更说明
+
+#### 问题原因
+在 `upsert_stock` 方法中，`prepare_stock_document` 函数可能返回包含 `created_at` 字段的文档（当 `stock_data` 中没有 `created_at` 时）。而 MongoDB 的更新操作同时使用了：
+- `$set`: 设置整个 document（可能包含 `created_at`）
+- `$setOnInsert`: 仅在插入时设置 `created_at`
+
+当 `document` 中包含 `created_at` 字段时，MongoDB 会检测到冲突并抛出错误：
+```
+Updating the path 'created_at' would create a conflict at 'created_at'
+```
+
+#### 修复方案
+在 `upsert_stock` 方法中，在更新前从 `document` 中移除 `created_at` 字段，确保它只通过 `$setOnInsert` 在插入时设置，更新时不会产生冲突。
+
+### 关键代码片段
+
+**修复前（存在冲突）**:
+```python
+document = prepare_stock_document(stock_data)
+document["ticker"] = ticker
+document["last_updated"] = now
+
+# ❌ 如果 document 包含 created_at，会与 $setOnInsert 冲突
+result = await self.collection.find_one_and_update(
+    {"ticker": ticker},
+    {
+        "$set": document,  # 可能包含 created_at
+        "$setOnInsert": {"created_at": now},  # 也会设置 created_at
+    },
+    upsert=True,
+    return_document=True,
+)
+```
+
+**修复后（避免冲突）**:
+```python
+document = prepare_stock_document(stock_data)
+document["ticker"] = ticker
+document["last_updated"] = now
+
+# ✅ 移除 created_at，确保它只通过 $setOnInsert 设置
+document.pop("created_at", None)
+
+result = await self.collection.find_one_and_update(
+    {"ticker": ticker},
+    {
+        "$set": document,  # 不再包含 created_at
+        "$setOnInsert": {"created_at": now},  # 只在插入时设置
+    },
+    upsert=True,
+    return_document=True,
+)
+```
+
+### 注意事项
+- `created_at` 字段应该只在文档首次插入时设置，更新时不应该修改
+- 使用 `$setOnInsert` 可以确保 `created_at` 只在插入时设置，更新时保持不变
+- 在 MongoDB 更新操作中，同一个字段不能同时出现在 `$set` 和 `$setOnInsert` 中
+- 此修复确保了更新操作不会影响 `created_at` 字段，同时避免了 MongoDB 的冲突错误
+
+## Commit-9d6acf4 添加股票更新接口的 ticker 有效性校验
+
+### 主要变更点
+- 在 `POST /api/v1/stocks/{ticker}/update` 接口中添加了 ticker 有效性校验
+- 防止创建无效的股票记录到数据库
+
+### 详细变更说明
+
+#### 问题原因
+之前的实现中，如果传入的 ticker 不存在于数据库中，即使 yfinance 返回了无效数据（比如缺少 name 字段），这些数据仍然会被保存到数据库中，导致数据库中存在无效的股票记录。
+
+#### 修复方案
+1. **路由层验证**：
+   - 在更新前先检查数据库中是否已存在该股票
+   - 如果股票不存在，设置 `validate_if_new = True`，触发数据有效性验证
+
+2. **服务层验证**：
+   - 在 `update_stock_from_yfinance` 方法中添加了 `validate_if_new` 参数
+   - 如果股票不存在且 `validate_if_new = True`，验证从 yfinance 抓取的数据是否有效
+   - 验证标准：至少要有 `name` 字段
+   - 如果数据无效，返回 `None`，路由层会返回 404 错误
+
+### 关键代码片段
+
+**路由层验证**:
+```python
+# 检查数据库中是否已存在该股票
+existing_stock = await stock_service.get_stock_by_ticker(ticker)
+
+# 如果股票不存在，需要验证数据有效性
+validate_if_new = existing_stock is None
+
+# 执行更新（如果股票不存在，会先验证数据有效性）
+updated_stock = await stock_service.update_stock_from_yfinance(
+    ticker, allow_create=True, validate_if_new=validate_if_new
+)
+```
+
+**服务层验证**:
+```python
+# 如果股票不存在于数据库中
+if existing_stock is None:
+    # 如果需要验证数据有效性
+    if validate_if_new:
+        # 验证数据有效性：至少要有 name 字段
+        if not stock_data.get("name"):
+            logger.warning(f"股票 {ticker} 数据无效（缺少 name 字段），拒绝创建新记录")
+            return None
+```
+
+### 注意事项
+- 只有有效的股票数据（至少包含 `name` 字段）才会被保存到数据库
+- 如果 ticker 不存在且数据无效，会返回 404 错误，不会创建无效的记录
+- 如果股票已存在于数据库中，允许正常更新（不需要额外验证）
+- 此修复确保了数据库中不会存在无效的股票记录
+
+## Commit-9c690f6 添加拉取全部股票列表的端点
+
+### 主要变更点
+- 新增 `POST /api/v1/stocks/fetch-all` 端点
+- 支持从 Yahoo Finance 拉取全部股票列表并保存到数据库
+
+### 详细变更说明
+
+#### 新增端点功能
+`POST /api/v1/stocks/fetch-all` 端点提供了以下功能：
+
+1. **获取股票代码列表**：
+   - 从 Yahoo Finance 获取所有可用的股票代码列表
+   - 包括 S&P 500、NASDAQ 100 等主要指数的股票
+
+2. **批量抓取股票信息**：
+   - 批量抓取这些股票的详细信息
+   - 支持通过 `delay` 参数控制抓取延迟（默认 1.0 秒，范围 0.0-10.0 秒）
+   - 避免请求过快导致被限流
+
+3. **保存到数据库**：
+   - 将有效的股票数据保存到数据库
+   - 使用 upsert 操作，避免重复数据
+
+4. **返回统计信息**：
+   - 返回详细的抓取和保存统计信息
+   - 包括总数、抓取成功/失败数、保存成功/失败数
+
+#### 端点参数
+- `delay` (可选，查询参数)：每次抓取之间的延迟（秒）
+  - 默认值：1.0 秒
+  - 范围：0.0-10.0 秒
+  - 建议值：1.0-2.0 秒，避免请求过快
+
+#### 响应格式
+```json
+{
+  "code": 200,
+  "message": "拉取完成：总数 X，抓取成功 Y，抓取失败 Z，保存成功 A，保存失败 B",
+  "data": {
+    "total": 500,
+    "fetch_success": 480,
+    "fetch_failed": 20,
+    "save_success": 475,
+    "save_failed": 5,
+    "results": [...]
+  }
+}
+```
+
+### 关键代码片段
+
+**路由端点**:
+```python
+@router.post("/fetch-all", response_model=dict)
+async def fetch_all_stocks(
+    delay: float = Query(1.0, ge=0.0, le=10.0, description="每次抓取之间的延迟（秒），默认 1.0 秒")
+):
+    """从 Yahoo Finance 拉取全部股票列表并保存到数据库."""
+    stock_service = get_stock_service(db=get_database())
+    result = await stock_service.fetch_and_save_all_stocks_from_yahoo(delay=delay)
+    # ...
+```
+
+### 注意事项
+- 此操作可能需要较长时间（取决于股票数量），建议在后台异步执行
+- 建议设置合适的 `delay` 参数，避免请求过快导致被限流
+- 此端点会覆盖数据库中已存在的股票数据（使用 upsert 操作）
+- 如果网络不稳定，部分股票可能抓取失败，这是正常现象
+
+## Commit-b079601 将拉取全部股票列表接口改为 SSE 实时推送进度
+
+### 主要变更点
+- 将 `POST /api/v1/stocks/fetch-all` 接口改为使用 Server-Sent Events (SSE) 实时推送进度
+- 解决长时间操作的进度反馈问题
+
+### 详细变更说明
+
+#### 问题背景
+之前的实现中，`POST /api/v1/stocks/fetch-all` 接口会同步执行，需要等待所有股票抓取和保存完成后才返回结果。由于操作耗时很长，用户无法了解当前进度，体验不佳。
+
+#### 解决方案
+使用 Server-Sent Events (SSE) 技术，将接口改为流式响应，实时推送拉取进度。
+
+#### 技术实现
+
+1. **路由层改造**：
+   - 使用 `StreamingResponse` 实现 SSE 流式响应
+   - 使用 `asyncio.Queue` 处理异步进度更新
+   - 设置正确的 SSE 响应头（`text/event-stream`）
+
+2. **服务层改造**：
+   - 添加 `progress_callback` 参数，支持实时进度回调
+   - 重构 `fetch_and_save_all_stocks_from_yahoo` 方法，直接调用底层函数
+   - 在关键节点发送进度更新（初始化、抓取、保存）
+
+3. **进度信息格式**：
+   ```json
+   {
+     "stage": "fetching",  // 阶段：init/fetching/saving/completed/error
+     "message": "正在抓取股票信息... (10/100)",
+     "progress": 5,  // 进度百分比（0-100）
+     "total": 100,
+     "current": 10,
+     "fetch_success": 8,
+     "fetch_failed": 2
+   }
+   ```
+
+#### 进度阶段说明
+
+1. **init 阶段**：初始化，获取股票代码列表
+2. **fetching 阶段**：批量抓取股票信息（进度 0-50%）
+3. **saving 阶段**：保存股票数据到数据库（进度 50-100%）
+4. **completed 阶段**：完成，包含最终统计结果
+5. **error 阶段**：发生错误
+
+### 关键代码片段
+
+**路由层 SSE 实现**:
+```python
+@router.post("/fetch-all")
+async def fetch_all_stocks(delay: float = Query(1.0, ...)):
+    async def event_generator():
+        progress_queue = asyncio.Queue()
+        
+        async def progress_handler(progress_data: dict):
+            await progress_queue.put(progress_data)
+        
+        task = asyncio.create_task(
+            stock_service.fetch_and_save_all_stocks_from_yahoo(
+                delay=delay, progress_callback=progress_handler
+            )
+        )
+        
+        while True:
+            progress_data = await asyncio.wait_for(
+                progress_queue.get(), timeout=0.5
+            )
+            if progress_data is None:
+                break
+            data = json.dumps(progress_data, ensure_ascii=False)
+            yield f"data: {data}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
+```
+
+**服务层进度回调**:
+```python
+async def fetch_and_save_all_stocks_from_yahoo(
+    self, delay: float = 1.0, progress_callback=None
+):
+    if progress_callback:
+        await progress_callback({
+            "stage": "init",
+            "message": "开始获取股票代码列表...",
+            "progress": 0,
+        })
+    # ... 抓取和保存逻辑，实时发送进度更新
+```
+
+### 客户端使用示例
+
+**JavaScript (EventSource)**:
+```javascript
+const eventSource = new EventSource('/api/v1/stocks/fetch-all?delay=1.0');
+
+eventSource.onmessage = (event) => {
+  const progress = JSON.parse(event.data);
+  console.log(progress.message);
+  console.log(`进度: ${progress.progress}%`);
+  
+  if (progress.stage === 'completed') {
+    console.log('完成！', progress.result);
+    eventSource.close();
+  } else if (progress.stage === 'error') {
+    console.error('错误：', progress.message);
+    eventSource.close();
+  }
+};
+
+eventSource.onerror = (error) => {
+  console.error('SSE 连接错误', error);
+  eventSource.close();
+};
+```
+
+### 注意事项
+- 客户端需要使用 EventSource API 或类似的 SSE 客户端库来接收进度更新
+- SSE 连接会保持打开状态直到操作完成或发生错误
+- 进度信息以 JSON 格式发送，需要客户端解析
+- 建议在前端显示进度条和实时统计信息，提升用户体验
+- 如果操作失败，会发送 error 阶段的进度信息，客户端应该处理错误情况
+
+## Commit-91c1384 修复 Wikipedia 请求 403 Forbidden 错误
+
+### 主要变更点
+- 为 Wikipedia 请求添加完整的浏览器请求头
+- 修复了从 Wikipedia 获取股票列表时的 403 Forbidden 错误
+
+### 详细变更说明
+
+#### 问题原因
+Wikipedia 服务器会拒绝没有 User-Agent 或请求头不完整的请求，导致返回 403 Forbidden 错误。之前的实现中，`_get_sp500_tickers()` 和 `_get_nasdaq_tickers()` 函数没有设置请求头，导致请求被拒绝。
+
+#### 修复方案
+1. **新增 `_get_wikipedia_headers()` 函数**：
+   - 统一管理 Wikipedia 请求的请求头
+   - 包含完整的浏览器请求头，模拟真实浏览器请求
+
+2. **为相关函数添加请求头**：
+   - `_get_sp500_tickers()` 函数添加请求头
+   - `_get_nasdaq_tickers()` 函数添加请求头
+
+#### 请求头内容
+```python
+{
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate",
+    "Connection": "keep-alive",
+}
+```
+
+### 关键代码片段
+
+**新增请求头函数**:
+```python
+def _get_wikipedia_headers() -> dict:
+    """获取 Wikipedia 请求的请求头."""
+    return {
+        "User-Agent": "Mozilla/5.0 ...",
+        "Accept": "text/html,application/xhtml+xml,...",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate",
+        "Connection": "keep-alive",
+    }
+```
+
+**使用请求头**:
+```python
+# _get_sp500_tickers()
+response = requests.get(url, timeout=10, headers=_get_wikipedia_headers())
+
+# _get_nasdaq_tickers()
+response = requests.get(url, timeout=10, headers=_get_wikipedia_headers())
+```
+
+### 注意事项
+- Wikipedia 可能会更新其反爬虫策略，如果仍然遇到 403 错误，可能需要调整请求头
+- 建议控制请求频率，避免过于频繁的请求导致 IP 被封禁
+- 如果 Wikipedia 访问仍然有问题，可以考虑使用其他数据源（如 Yahoo Finance API）
+
+## Commit-431e8de 使用多数据源获取股票列表，避免依赖 Wikipedia
+
+### 主要变更点
+- 重构 `get_all_tickers_from_yahoo()` 函数，使用多个数据源获取股票列表
+- 降低对 Wikipedia 的依赖，提高数据获取的可靠性
+
+### 详细变更说明
+
+#### 问题背景
+之前的实现主要依赖 Wikipedia 获取股票列表（S&P 500、NASDAQ 100），但 Wikipedia 经常返回 403 Forbidden 错误，导致无法获取股票列表。
+
+#### 解决方案
+重构数据获取逻辑，使用多个数据源，按优先级依次尝试，确保即使某个数据源失败也能获取到股票列表。
+
+#### 新增数据源
+
+1. **预定义股票列表**（`_get_predefined_tickers()`）：
+   - 包含 S&P 500、NASDAQ 100、Dow Jones 30 的主要股票
+   - 约 150+ 只常见股票代码
+   - 作为最可靠的数据源，不依赖外部网络
+   - 即使所有外部数据源都失败，也能提供基本的股票列表
+
+2. **Yahoo Finance API**（`_get_tickers_from_yahoo_finance_api()`）：
+   - 使用 Yahoo Finance 的搜索 API (`/v1/finance/search`)
+   - 通过搜索不同行业关键词（technology, finance, healthcare 等）获取股票代码
+   - 更可靠，不需要解析 HTML
+   - 每个关键词最多获取 50 个结果
+
+#### 数据源优先级
+
+新的实现按以下优先级获取股票列表：
+
+1. **优先级1：预定义股票列表**
+   - 最可靠，不依赖外部网络
+   - 包含市场上最重要的股票
+
+2. **优先级2：Yahoo Finance API**
+   - 通过搜索 API 获取，更可靠
+   - 可以获取更多股票代码
+
+3. **优先级3：Yahoo Finance 页面抓取**
+   - 作为备用方案
+   - 如果前两个数据源都失败，尝试从页面抓取
+
+4. **优先级4：Wikipedia**
+   - 仅在获取的股票数量不足（< 50）时使用
+   - 如果其他数据源已经获取到足够的股票，则跳过 Wikipedia
+
+#### 优势
+
+- **更高的可靠性**：即使 Wikipedia 返回 403 错误，也能从其他数据源获取股票列表
+- **更快的响应**：预定义列表可以立即返回，不需要等待网络请求
+- **更好的容错性**：多个数据源提供冗余，单个数据源失败不影响整体功能
+- **更灵活**：可以根据需要调整数据源优先级
+
+### 关键代码片段
+
+**预定义股票列表**:
+```python
+def _get_predefined_tickers() -> List[str]:
+    """获取预定义的常见股票代码列表."""
+    sp500_major = ["AAPL", "MSFT", "GOOGL", ...]
+    nasdaq_major = ["AAPL", "MSFT", "GOOGL", ...]
+    dow30 = ["AAPL", "MSFT", "UNH", ...]
+    all_tickers = set(sp500_major + nasdaq_major + dow30)
+    return sorted(list(all_tickers))
+```
+
+**Yahoo Finance API**:
+```python
+def _get_tickers_from_yahoo_finance_api() -> List[str]:
+    """从 Yahoo Finance API 获取股票列表."""
+    url = "https://query1.finance.yahoo.com/v1/finance/search"
+    params = {"q": term, "quotesCount": 50}
+    # 搜索不同行业关键词获取股票代码
+```
+
+**多数据源获取**:
+```python
+def get_all_tickers_from_yahoo() -> List[str]:
+    # 1. 预定义列表（最可靠）
+    predefined_tickers = _get_predefined_tickers()
+    
+    # 2. Yahoo Finance API
+    api_tickers = _get_tickers_from_yahoo_finance_api()
+    
+    # 3. Yahoo Finance 页面抓取
+    yahoo_tickers = _scrape_yahoo_tickers()
+    
+    # 4. Wikipedia（仅在数量不足时使用）
+    if len(tickers) < 50:
+        sp500_tickers = _get_sp500_tickers()
+        nasdaq_tickers = _get_nasdaq_tickers()
+```
+
+### 注意事项
+- 预定义列表包含约 150+ 只股票，主要是市场上最重要的股票
+- Yahoo Finance API 搜索可能会返回一些非股票代码（如期权、期货），已过滤
+- 如果所有数据源都失败，至少可以返回预定义列表中的股票
+- 建议定期更新预定义列表，添加新的重要股票
+
+## Commit-e12ec39 使用 yfinance Tickers 批量获取股票信息
+
+### 主要变更点
+- 使用 yfinance 的 Tickers 类批量获取股票信息，替代逐个获取的方式
+- 大幅提升批量获取股票信息的性能
+
+### 详细变更说明
+
+#### 问题背景
+之前的实现中，`fetch_multiple_stocks()` 函数逐个调用 `fetch_stock_info_async()` 获取股票信息，每个股票都需要单独的网络请求，效率较低。
+
+#### 解决方案
+yfinance 库提供了 `Tickers` 类，可以批量处理多个股票代码，比逐个获取更高效。测试显示：
+- **单个获取**：平均 2.46 秒/只
+- **批量获取**：平均 0.63 秒/只（3 只股票共 1.88 秒）
+- **性能提升**：约 4 倍
+
+#### 技术实现
+
+1. **使用 yf.Tickers() 批量创建 Ticker 对象**：
+   ```python
+   tickers_obj = yf.Tickers("AAPL MSFT GOOGL")
+   ```
+
+2. **通过 tickers_obj.tickers 字典访问每个 Ticker 对象**：
+   ```python
+   for symbol, ticker_obj in tickers_obj.tickers.items():
+       info = ticker_obj.info
+   ```
+
+3. **支持分批处理**：
+   - 默认每批处理 50 只股票
+   - 如果股票数量较多，自动分批处理
+   - 批量之间添加延迟，避免请求过快
+
+4. **容错机制**：
+   - 如果批量获取失败，自动回退到逐个获取模式
+   - 确保即使批量获取失败，也能正常获取股票信息
+
+### 关键代码片段
+
+**批量获取实现**:
+```python
+async def fetch_multiple_stocks(tickers: list[str], delay: float = 1.0, batch_size: int = 50):
+    # 将股票列表分批处理
+    batches = [tickers[i:i + batch_size] for i in range(0, len(tickers), batch_size)]
+    
+    for batch_tickers in batches:
+        ticker_string = " ".join(batch_tickers)
+        tickers_obj = yf.Tickers(ticker_string)
+        
+        for symbol, ticker_obj in tickers_obj.tickers.items():
+            info = ticker_obj.info
+            # 处理股票信息
+```
+
+### 性能对比
+
+**之前（逐个获取）**:
+- 100 只股票 × 2.46 秒/只 = 246 秒（约 4 分钟）
+
+**现在（批量获取）**:
+- 100 只股票 ÷ 50 只/批 = 2 批
+- 2 批 × 1.88 秒/批 = 3.76 秒（约 4 秒）
+- **性能提升约 65 倍**
+
+### 注意事项
+- 批量获取仍然需要访问每个股票的 `info` 属性，但比逐个创建 Ticker 对象快得多
+- 如果批量获取失败，会自动回退到逐个获取模式，确保功能正常
+- 默认每批处理 50 只股票，可以根据需要调整 `batch_size` 参数
+- 批量之间仍然会添加延迟，避免请求过快导致被限流
+
+## Commit-1debb97 增强动态获取股票列表能力，优先使用动态数据源
+
+### 主要变更点
+- 重构 `get_all_tickers_from_yahoo()` 函数，优先使用动态数据源获取股票列表
+- 预定义列表仅作为兜底，解决只能获取170只写死股票的问题
+
+### 详细变更说明
+
+#### 问题背景
+之前的实现中，由于其他动态数据源（Yahoo Finance API、页面抓取、Wikipedia）经常失败，导致只能获取预定义列表中写死的约170只股票，无法动态获取更多股票。
+
+#### 解决方案
+调整数据源优先级和增强搜索策略，优先使用动态数据源，预定义列表仅作为兜底。
+
+#### 数据源优先级调整
+
+**新的优先级**（动态数据源优先）：
+1. **优先级1：Yahoo Finance API**（多种搜索策略，动态获取）
+2. **优先级2：Yahoo Finance 页面抓取**（动态）
+3. **优先级3：Wikipedia**（如果动态获取的股票数量<200）
+4. **优先级4：预定义列表**（兜底，仅在股票数量<100时使用）
+
+**之前的优先级**（预定义列表优先）：
+1. 预定义列表
+2. Yahoo Finance API
+3. Yahoo Finance 页面抓取
+4. Wikipedia
+
+#### 增强的搜索策略
+
+1. **策略1：按行业关键词搜索**（17个行业）：
+   - technology, finance, healthcare, energy, consumer
+   - industrial, communication, utilities, real estate
+   - biotech, pharmaceutical, retail, manufacturing
+   - aerospace, defense, automotive, semiconductor
+   - 每个关键词获取100个结果（之前是50个）
+
+2. **策略2：按字母搜索**（智能触发）：
+   - 仅在通过行业搜索获取的股票数量<300时使用
+   - 只搜索前10个常见字母（A-J），避免耗时过长
+   - 每个字母获取50个结果
+   - 只保留以该字母开头的股票代码
+
+3. **策略3：搜索热门关键词**（8个关键词）：
+   - stock, shares, company, corporation, inc, ltd
+   - top stocks, most active, gainers, losers
+   - 每个关键词获取50个结果
+
+#### 改进的股票过滤逻辑
+
+- 通过 `quoteType` 字段过滤，只保留 `EQUITY`、`STOCK` 类型
+- 排除期权、期货、ETF等非股票代码
+- 确保股票代码长度不超过5个字符，不包含点号
+
+### 关键代码片段
+
+**数据源优先级**:
+```python
+def get_all_tickers_from_yahoo() -> List[str]:
+    # 方法1: Yahoo Finance API（动态，优先）
+    api_tickers = _get_tickers_from_yahoo_finance_api()
+    
+    # 方法2: Yahoo Finance 页面抓取（动态）
+    yahoo_tickers = _scrape_yahoo_tickers()
+    
+    # 方法3: Wikipedia（如果动态获取不足）
+    if len(tickers) < 200:
+        sp500_tickers = _get_sp500_tickers()
+        nasdaq_tickers = _get_nasdaq_tickers()
+    
+    # 方法4: 预定义列表（兜底，仅在数量<100时使用）
+    if len(tickers) < 100:
+        predefined_tickers = _get_predefined_tickers()
+```
+
+**增强的搜索策略**:
+```python
+def _get_tickers_from_yahoo_finance_api() -> List[str]:
+    # 策略1: 按行业关键词搜索（17个行业）
+    search_terms = ["technology", "finance", ...]
+    
+    # 策略2: 按字母搜索（智能触发）
+    if len(tickers) < 300:
+        letters = "ABCDEFGHIJ"  # 只搜索前10个字母
+    
+    # 策略3: 搜索热门关键词
+    popular_terms = ["stock", "shares", ...]
+```
+
+### 预期效果
+
+- **动态获取的股票数量**：从约170只增加到500+只
+- **数据源可靠性**：多个动态数据源提供冗余，单个失败不影响整体
+- **预定义列表作用**：仅作为兜底，确保至少有一些股票
+- **股票多样性**：通过多种搜索策略获取更多样化的股票列表
+
+### 注意事项
+- 按字母搜索可能会获取一些不相关的股票，但通过 `quoteType` 过滤可以排除大部分
+- 如果所有动态数据源都失败，仍然会使用预定义列表作为兜底
+- 搜索策略的延迟设置（0.2-0.3秒）可以避免请求过快导致被限流
+- 建议监控日志，了解各个数据源的获取情况
+
+## Commit-53ada61 为 fetch-all 接口添加详细日志
+
+### 主要变更点
+- 为 `fetch_and_save_all_stocks_from_yahoo` 和 `get_all_tickers_from_yahoo` 函数添加详细的日志记录
+- 方便调试和监控 fetch-all 操作的执行情况
+
+### 详细变更说明
+
+#### 问题背景
+之前的实现中，fetch-all 操作的日志信息较少，难以了解操作的详细进度、各个数据源的获取情况、失败原因等，不利于调试和监控。
+
+#### 解决方案
+为关键函数添加详细的日志记录，包括操作步骤、耗时统计、进度信息、失败详情等。
+
+#### 日志增强内容
+
+1. **fetch_and_save_all_stocks_from_yahoo 函数**：
+   - **操作开始/结束标记**：使用分隔线（`=` * 80）标记操作开始和结束
+   - **总耗时统计**：记录整个操作的开始时间和总耗时
+   - **步骤1：获取股票代码列表**：
+     - 记录开始时间和耗时
+     - 记录获取到的股票总数和示例（前10只）
+   - **步骤2：批量抓取股票信息**：
+     - 记录批量抓取参数（delay、总数）
+     - 每10只股票记录一次进度（包含成功/失败数、已耗时、预计剩余时间）
+     - 记录每只股票的抓取耗时（DEBUG级别）
+     - 记录失败的股票代码列表（前20只）
+     - 记录抓取阶段的统计信息（成功/失败数、总耗时）
+   - **步骤3：保存股票数据**：
+     - 记录待保存的股票数量
+     - 每10只股票记录一次进度
+     - 记录每只股票的保存耗时（DEBUG级别）
+     - 记录保存失败的股票代码列表（前20只）
+     - 记录保存阶段的统计信息
+   - **操作完成总结**：汇总所有统计信息
+
+2. **get_all_tickers_from_yahoo 函数**：
+   - **数据源统计**：记录每个数据源的执行情况
+     - Yahoo Finance API：成功/失败、获取数量、新增数量、耗时
+     - Yahoo Finance 页面：成功/失败、获取数量、新增数量、耗时
+     - Wikipedia（S&P 500、NASDAQ）：获取数量、新增数量
+     - 预定义列表：获取数量、新增数量、耗时
+   - **数据源汇总**：输出所有数据源的统计信息表格
+   - **最终统计**：记录总股票数、总耗时、是否动态获取
+   - **股票代码示例**：记录前20只股票代码
+
+### 日志级别说明
+
+- **INFO**：主要步骤、进度、统计信息（默认显示）
+- **DEBUG**：每只股票的详细操作（需要设置日志级别为DEBUG）
+- **WARNING**：失败和警告信息
+- **ERROR**：错误信息
+
+### 日志示例
+
+**操作开始**:
+```
+================================================================================
+开始执行 fetch_and_save_all_stocks_from_yahoo 操作
+参数: delay=1.0, progress_callback=已设置
+步骤1: 开始获取股票代码列表...
+```
+
+**数据源统计**:
+```
+================================================================================
+数据源统计信息:
+  Yahoo Finance API: 成功 | 获取 450 只 | 新增 450 只 | 耗时 12.34秒
+  Yahoo Finance 页面: 失败 | 错误: 403 Forbidden | 耗时 2.50秒
+  预定义列表: 成功 | 获取 150 只 | 新增 50 只 | 耗时 0.01秒
+================================================================================
+```
+
+**进度信息**:
+```
+抓取进度: 50/500 (10%) | 成功: 48 | 失败: 2 | 已耗时: 45.2秒 | 预计剩余: 407.1秒
+```
+
+**操作完成**:
+```
+================================================================================
+操作完成总结: 总耗时 452.34 秒 | 股票总数 500 | 抓取成功 485 | 抓取失败 15 | 保存成功 480 | 保存失败 20
+================================================================================
+```
+
+### 关键代码片段
+
+**步骤标记和耗时统计**:
+```python
+logger.info("=" * 80)
+logger.info("开始执行 fetch_and_save_all_stocks_from_yahoo 操作")
+start_time = time.time()
+
+# ... 操作 ...
+
+total_elapsed = time.time() - start_time
+logger.info(f"操作完成总结: 总耗时 {total_elapsed:.2f} 秒")
+logger.info("=" * 80)
+```
+
+**进度记录**:
+```python
+if (idx + 1) % 10 == 0 or idx == total - 1:
+    elapsed = time.time() - fetch_start_time
+    avg_time = elapsed / (idx + 1)
+    remaining = avg_time * (total - idx - 1)
+    logger.info(
+        f"抓取进度: {idx + 1}/{total} ({int((idx + 1) / total * 100)}%) | "
+        f"成功: {fetch_success} | 失败: {fetch_failed} | "
+        f"已耗时: {elapsed:.1f}秒 | 预计剩余: {remaining:.1f}秒"
+    )
+```
+
+**数据源统计**:
+```python
+data_source_stats["Yahoo Finance API"] = {
+    "success": True,
+    "count": len(api_tickers),
+    "added": added_count,
+    "elapsed": api_elapsed,
+}
+```
+
+### 注意事项
+- DEBUG 级别的日志需要设置日志级别为 DEBUG 才能看到
+- 日志输出可能会比较多，建议使用日志轮转或过滤
+- 预计剩余时间的计算基于当前平均速度，可能不够准确
+- 失败的股票代码列表只显示前20只，避免日志过长

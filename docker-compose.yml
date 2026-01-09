@@ -45,6 +45,33 @@ services:
       retries: 3
       start_period: 10s
 
+  # Python 股票信息服务
+  py-stock-info-service:
+    build:
+      context: ./services/py-stock-info-service
+      dockerfile: Dockerfile
+    container_name: financial-kanban-py-stock-info-service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017
+      DATABASE_NAME: financial_kanban
+      PORT: 8001
+      HOST: 0.0.0.0
+      ENVIRONMENT: production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - financial-kanban-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   # Node.js Nest.js 服务
   node-service:
     build:
@@ -120,6 +147,8 @@ services:
       node-service:
         condition: service_healthy
       rust-service:
+        condition: service_healthy
+      py-stock-info-service:
         condition: service_healthy
     networks:
       - financial-kanban-network
