@@ -1,26 +1,70 @@
+import tailwindcss from '@tailwindcss/vite'
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: '2024-04-03',
   devtools: { enabled: true },
-  modules: [
-    '@nuxtjs/tailwindcss',
-    '@pinia/nuxt',
+
+  css: ['~/assets/css/tailwind.css'],
+  vite: {
+    plugins: [
+      tailwindcss(),
+    ],
+  },
+
+  components: [
+    {
+      path: '~/components',
+      extensions: ['.vue'],
+    },
   ],
-  css: ['~/assets/css/main.css'],
-  runtimeConfig: {
-    public: {
-      pythonApiUrl: process.env.NUXT_PUBLIC_PYTHON_API_URL || 'http://localhost:8000',
-      nodeApiUrl: process.env.NUXT_PUBLIC_NODE_API_URL || 'http://localhost:3000',
-      rustApiUrl: process.env.NUXT_PUBLIC_RUST_API_URL || 'http://localhost:8080',
+
+  modules: [
+    'shadcn-nuxt',
+    '@vueuse/nuxt',
+    '@nuxt/eslint',
+    '@nuxt/icon',
+    '@pinia/nuxt',
+    '@nuxtjs/color-mode',
+    '@nuxt/fonts',
+  ],
+
+  shadcn: {
+    /**
+     * Prefix for all the imported component
+     */
+    prefix: '',
+    /**
+     * Directory that the component lives in.
+     * @default "~/components/ui"
+     */
+    componentDir: '~/components/ui',
+  },
+
+  colorMode: {
+    classSuffix: '',
+  },
+
+  eslint: {
+    config: {
+      standalone: false,
     },
   },
-  app: {
-    head: {
-      title: 'Financial Kanban System',
-      meta: [
-        { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      ],
+
+  fonts: {
+    defaults: {
+      weights: [300, 400, 500, 600, 700, 800],
     },
   },
-});
+
+  routeRules: {
+    '/components': { redirect: '/components/accordion' },
+    '/settings': { redirect: '/settings/profile' },
+  },
+
+  imports: {
+    dirs: [
+      './lib',
+    ],
+  },
+
+  compatibilityDate: '2024-12-14',
+})

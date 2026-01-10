@@ -1238,3 +1238,237 @@ data_source_stats["Yahoo Finance API"] = {
 - 日志输出可能会比较多，建议使用日志轮转或过滤
 - 预计剩余时间的计算基于当前平均速度，可能不够准确
 - 失败的股票代码列表只显示前20只，避免日志过长
+
+## 变更记录 - 废弃旧技术方案，创建新的技术方案和路线文档
+
+### 主要变更点
+- 废弃之前的前端改版技术方案和技术路线文档
+- 创建新的技术方案文档，聚焦 Playground 页面和 BFF 架构设计
+- 创建新的技术路线文档，详细拆解任务
+
+### 详细变更说明
+
+#### 文档管理
+1. **废弃旧文档**：
+   - 将 `技术方案设计-前端改版.md` 移动到 `archived/` 目录
+   - 将 `技术路线-前端改版.md` 移动到 `archived/` 目录
+   - 旧文档已归档，不再使用
+
+2. **创建新文档**：
+   - 创建 `技术方案设计.md`：新的技术方案文档
+   - 创建 `技术路线-Playground与BFF架构设计.md`：新的技术路线文档
+
+#### 新阶段任务
+
+**主要任务**：
+1. **Playground 页面开发**：
+   - 在新的前端项目中，增加一个 playground 页面
+   - 用于访问和测试三个后端服务（Node.js、Python、Rust）
+   - 提供统一的 CRUD 操作界面
+
+2. **BFF 架构 API 层设计**：
+   - 设计新的 API 层，支持当前直接调用后端服务
+   - 使用适配器模式，支持后续平滑过渡到 BFF 架构
+   - 预留 BFF 适配器接口
+
+#### 技术方案要点
+
+**API 层架构设计**：
+- **适配器模式**：
+  - `ApiAdapter` 接口：统一的适配器接口
+  - `DirectAdapter`：直接调用后端服务（当前使用）
+  - `BffAdapter`：BFF 适配器（预留）
+- **统一 API 客户端**：
+  - `ApiClient` 类：统一的 API 客户端
+  - 支持依赖注入，切换适配器
+  - 支持请求/响应拦截器（预留）
+- **服务层封装**：
+  - `api/services/node.ts`：Node.js 服务 API
+  - `api/services/python.ts`：Python 服务 API
+  - `api/services/rust.ts`：Rust 服务 API
+
+**Playground 页面设计**：
+- **页面结构**：
+  - `/playground`：主页面（服务选择）
+  - `/playground/node`：Node.js 服务测试页面
+  - `/playground/python`：Python 服务测试页面
+  - `/playground/rust`：Rust 服务测试页面
+- **功能**：
+  - 统一的 CRUD 操作界面
+  - 数据列表展示
+  - 创建/更新/删除操作
+  - 加载状态和错误处理
+
+#### 技术路线拆解
+
+**Phase 1：API 层基础架构**（核心）
+- 设计适配器接口和类型定义
+- 实现 DirectAdapter
+- 创建统一 ApiClient
+- 实现三个服务的 API 封装
+- 配置环境变量和 Runtime Config
+
+**Phase 2：Playground 页面开发**（核心）
+- 创建 Playground 主页面
+- 创建三个服务的测试页面
+- 实现 CRUD 操作界面
+- 更新导航菜单配置
+
+**Phase 3：功能完善**（重要）
+- 添加请求/响应拦截器（预留）
+- 完善错误处理
+- 优化用户体验
+
+**Phase 4：BFF 准备**（后续）
+- 预留 BffAdapter 接口
+- 设计 BFF API 规范文档
+
+**Phase 5：测试和验证**（重要）
+- 功能测试
+- 代码质量检查
+
+### 关键代码片段
+
+**适配器接口设计**:
+```typescript
+interface ApiAdapter {
+  get<T>(url: string, config?: RequestConfig): Promise<ApiResponse<T>>
+  post<T>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>>
+  put<T>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>>
+  delete<T>(url: string, config?: RequestConfig): Promise<ApiResponse<T>>
+}
+```
+
+**ApiClient 使用示例**:
+```typescript
+// 当前使用 DirectAdapter
+const apiClient = new ApiClient(new DirectAdapter())
+
+// 后续切换到 BFF
+const apiClient = new ApiClient(new BffAdapter())
+```
+
+### 注意事项
+- 新文档聚焦当前阶段的具体任务（Playground 页面 + BFF 架构设计）
+- 技术方案和技术路线文档已更新，反映新的开发方向
+- 旧文档已归档，保留历史记录
+- 后续开发将按照新的技术路线进行
+
+#### 文档命名优化
+- 将 `技术方案设计.md` 重命名为 `技术方案设计-前端开发.md`，便于 AI-Agent 识别
+- 将 `技术路线-Playground与BFF架构设计.md` 重命名为 `技术路线-前端开发.md`，统一命名规范
+- 删除 archived 目录下的废弃文档（`技术方案设计-前端改版.md`、`技术路线-前端改版.md`）
+
+## 变更记录 - 前端项目重构：废弃旧实现，使用模版项目重新初始化
+
+### 主要变更点
+- 删除现有的 frontend 文件夹（旧的前端实现）
+- 使用 `npx nuxi@latest init` 初始化新的 Nuxt 项目
+- 使用模版项目：`github:dianprata/nuxt-shadcn-dashboard`
+- 创建对比分析文档，总结新旧项目差异
+
+### 详细变更说明
+
+#### 问题背景
+现有的简单前端实现不具备可扩展性，尝试对项目进行迭代但不成功。因此决定废弃现有实现，使用社区已有的成熟模版项目重新实现。
+
+#### 执行步骤
+
+1. **删除旧项目**：
+   - 完全删除 `frontend/` 文件夹及其所有内容
+   - 包括旧的 API 封装、组件、页面等
+
+2. **初始化新项目**：
+   - 使用命令：`npx nuxi@latest init -t github:dianprata/nuxt-shadcn-dashboard frontend`
+   - 选择包管理器：pnpm（符合项目规范）
+   - 成功创建基于 Nuxt 4 + Shadcn Vue + TailwindCSS 4 的新项目
+
+3. **创建对比文档**：
+   - 创建 `docs/前端项目重构对比分析.md` 文档
+   - 详细对比新旧项目的技术栈、项目结构、配置文件等
+   - 列出需要迁移的内容和下一步行动
+
+#### 新项目特点
+
+**技术栈升级**：
+- Nuxt 3.13.0 → Nuxt 4.1.3
+- Tailwind CSS 3 → TailwindCSS 4
+- 新增 Shadcn Vue 组件库（300+ 组件）
+- 新增完整的 TypeScript 支持
+- 新增 ESLint 代码检查
+
+**项目结构**：
+- 使用 Nuxt 4 的 `app/` 目录结构
+- 完整的布局系统（default, blank）
+- 丰富的示例页面（认证、错误页、设置、Kanban、任务管理等）
+- 完整的主题系统（深色/浅色模式、多种主题颜色）
+
+**开发体验**：
+- 完整的 ESLint 配置（@antfu/eslint-config）
+- TypeScript 类型检查（vue-tsc）
+- 代码格式化工具
+- 完整的组件库和示例
+
+#### 需要迁移的内容
+
+1. **API 封装**（必须迁移）：
+   - `api/node.ts` - Node.js 服务 API 封装
+   - `api/python.ts` - Python 服务 API 封装
+   - `api/rust.ts` - Rust 服务 API 封装
+   - `composables/useApi.ts` - 统一 API 调用封装
+
+2. **配置文件**（必须添加）：
+   - `.env.example` - 环境变量配置
+   - `Dockerfile` 和 `.dockerignore` - Docker 支持
+   - `nuxt.config.ts` 中的 Runtime Config - API 地址配置
+
+3. **应用信息**（需要更新）：
+   - `app.vue` 中的 title 和 meta 信息
+   - 应用名称和描述
+
+### 关键代码片段
+
+**新项目 nuxt.config.ts**:
+```typescript
+export default defineNuxtConfig({
+  devtools: { enabled: true },
+  css: ['~/assets/css/tailwind.css'],
+  vite: {
+    plugins: [tailwindcss()],
+  },
+  modules: [
+    'shadcn-nuxt',
+    '@vueuse/nuxt',
+    '@nuxt/eslint',
+    '@nuxt/icon',
+    '@pinia/nuxt',
+    '@nuxtjs/color-mode',
+    '@nuxt/fonts',
+  ],
+  shadcn: {
+    prefix: '',
+    componentDir: '~/components/ui',
+  },
+  compatibilityDate: '2024-12-14',
+});
+```
+
+**需要添加的 Runtime Config**:
+```typescript
+runtimeConfig: {
+  public: {
+    pythonApiUrl: process.env.NUXT_PUBLIC_PYTHON_API_URL || 'http://localhost:8000',
+    nodeApiUrl: process.env.NUXT_PUBLIC_NODE_API_URL || 'http://localhost:3000',
+    rustApiUrl: process.env.NUXT_PUBLIC_RUST_API_URL || 'http://localhost:8080',
+  },
+},
+```
+
+### 注意事项
+- 新项目使用 Nuxt 4，需要 Node.js 22.x
+- 新项目使用 pnpm 作为包管理器（packageManager: "pnpm@10.10.0"）
+- 需要迁移现有的 API 封装到新项目
+- 需要添加环境变量配置和 Docker 支持
+- 新项目提供了丰富的示例代码，可以作为开发参考
+- 建议先熟悉新项目的结构和组件库，再进行业务功能开发
+- 对比文档已创建在 `docs/前端项目重构对比分析.md`，包含详细的迁移清单
