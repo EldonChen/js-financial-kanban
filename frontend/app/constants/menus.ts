@@ -30,6 +30,29 @@ export const navMenu: NavMenu[] = [
         link: '/kanban',
         new: true,
       },
+      {
+        title: 'Playground',
+        icon: 'i-lucide-code-2',
+        link: '/playground',
+        new: true,
+        children: [
+          {
+            title: 'Node.js',
+            icon: 'i-lucide-circle',
+            link: '/playground/node',
+          },
+          {
+            title: 'Python',
+            icon: 'i-lucide-circle',
+            link: '/playground/python',
+          },
+          {
+            title: 'Rust',
+            icon: 'i-lucide-circle',
+            link: '/playground/rust',
+          },
+        ],
+      },
     ],
   },
   {

@@ -18,13 +18,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 RUN chmod +x /usr/local/bin/uv
 
+# 设置 uv 环境变量：增加超时时间以应对网络问题
+ENV UV_HTTP_TIMEOUT=300
+ENV UV_CONSTRAINT=0
+
 # 复制项目文件
 COPY pyproject.toml ./
 # 注意：uv.lock 文件可能不存在，uv sync 会在没有 lock 文件时自动生成
 COPY .env.example ./
 
 # 安装 Python 依赖
-RUN uv sync --frozen || uv sync
+# 先尝试使用 lockfile，如果不存在或失败，则生成新的 lockfile
+RUN if [ -f uv.lock ]; then \
+        uv sync --frozen || uv sync; \
+    else \
+        uv sync; \
+    fi
 
 # 复制应用代码
 COPY app ./app
