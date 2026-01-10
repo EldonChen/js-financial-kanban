@@ -19,6 +19,7 @@ async def get_stocks(
     ticker: str | None = Query(None, description="股票代码（精确匹配）"),
     name: str | None = Query(None, description="股票名称（模糊查询）"),
     market: str | None = Query(None, description="市场（精确匹配）"),
+    market_type: str | None = Query(None, description="市场类型（精确匹配：A股、港股、美股）"),
     sector: str | None = Query(None, description="行业板块（精确匹配）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -29,6 +30,7 @@ async def get_stocks(
             ticker=ticker,
             name=name,
             market=market,
+            market_type=market_type,
             sector=sector,
             page=page,
             page_size=page_size,
@@ -65,11 +67,20 @@ async def get_stock(ticker: str):
 
 
 @router.post("/{ticker}/update", response_model=dict)
-async def update_stock(ticker: str):
-    """手动触发单个股票的更新.
+async def update_stock(
+    ticker: str,
+    market: str | None = Query(None, description="市场类型（可选，用于选择合适的数据源：A股、港股、美股）"),
+    preferred_provider: str | None = Query(None, description="首选数据源（可选：akshare、yfinance、easyquotation等）"),
+):
+    """手动触发单个股票的更新（支持多数据源）.
     
     注意：如果股票不存在于数据库中，会先验证 ticker 是否有效。
     只有有效的股票数据（至少包含 name 字段）才会被保存到数据库。
+    
+    数据源选择逻辑：
+    - 如果指定了 preferred_provider，优先使用该数据源
+    - 如果指定了 market，会根据市场类型自动选择合适的数据源
+    - 否则，按优先级自动选择数据源（自动容错）
     """
     try:
         stock_service = get_stock_service(db=get_database())
@@ -81,9 +92,13 @@ async def update_stock(ticker: str):
         # 如果股票已存在，允许更新（不需要额外验证）
         validate_if_new = existing_stock is None
         
-        # 执行更新（如果股票不存在，会先验证数据有效性）
-        updated_stock = await stock_service.update_stock_from_yfinance(
-            ticker, allow_create=True, validate_if_new=validate_if_new
+        # 执行更新（使用多数据源方法）
+        updated_stock = await stock_service.update_stock_from_provider(
+            ticker=ticker,
+            market=market,
+            preferred_provider=preferred_provider,
+            allow_create=True,
+            validate_if_new=validate_if_new,
         )
         
         if updated_stock is None:
@@ -137,14 +152,21 @@ async def batch_update_stocks(request: BatchUpdateRequest):
 
 @router.post("/fetch-all")
 async def fetch_all_stocks(
+    market: str | None = Query(None, description="市场类型（可选，用于选择合适的数据源：A股、港股、美股）"),
     delay: float = Query(1.0, ge=0.0, le=10.0, description="每次抓取之间的延迟（秒），默认 1.0 秒")
 ):
-    """从 Yahoo Finance 拉取全部股票列表并保存到数据库（SSE 实时推送进度）.
+    """从数据源拉取全部股票列表并保存到数据库（SSE 实时推送进度，支持多数据源）.
     
     此接口使用 Server-Sent Events (SSE) 实时推送拉取进度，包括：
     1. 获取股票代码列表的进度
     2. 批量抓取股票信息的进度
     3. 保存股票数据到数据库的进度
+    
+    数据源选择逻辑：
+    - 如果指定了 market，会根据市场类型自动选择合适的数据源
+    - A股：优先使用 akshare
+    - 美股/港股：优先使用 yfinance
+    - 否则，按优先级自动选择数据源（自动容错）
     
     响应格式为 SSE 流，客户端可以通过 EventSource API 接收实时进度更新。
     
@@ -170,8 +192,11 @@ async def fetch_all_stocks(
                 """异步拉取任务."""
                 nonlocal task_done, error_occurred
                 try:
-                    await stock_service.fetch_and_save_all_stocks_from_yahoo(
-                        delay=delay, progress_callback=progress_handler
+                    # 使用新的多数据源方法
+                    await stock_service.fetch_and_save_all_stocks_from_provider(
+                        market=market,
+                        delay=delay,
+                        progress_callback=progress_handler
                     )
                 except Exception as e:
                     error_occurred = True

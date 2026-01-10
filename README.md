@@ -50,6 +50,7 @@ js-financial-kanban/
 │   └── nuxt.config.ts
 ├── services/                # 后端服务
 │   ├── python-service/      # Python FastAPI 服务
+│   ├── py-stock-info-service/  # Python 股票信息服务（多数据源支持）
 │   ├── node-service/        # Node.js (Bun + Nest.js) 服务
 │   ├── rust-service/        # Rust (Axum) 服务
 │   └── py-stock-info-service/ # Python 股票信息服务
@@ -402,9 +403,16 @@ Docker 部署主要用于：
 ### 子项目文档
 
 - [Python 服务 README](./services/python-service/README.md)
+- [股票信息服务 README](./services/py-stock-info-service/README.md) - 支持多数据源的股票信息服务
 - [Node.js 服务 README](./services/node-service/README.md)
 - [Rust 服务 README](./services/rust-service/README.md)
 - [BFF 服务 README](./bff/bff-main/README.md)
+
+### 功能文档
+
+- [API 文档 - 股票信息服务](./docs/API文档-股票信息服务.md) - 股票信息服务 API 详细文档
+- [数据源调研报告](./docs/数据源调研报告.md) - 股票数据源调研和对比
+- [技术方案设计 - 多数据源支持](./docs/技术方案设计-多数据源支持.md) - 多数据源支持技术方案
 
 ## 🤝 贡献
 
@@ -458,6 +466,13 @@ cargo test
 ### ✅ 已完成
 - 项目结构初始化
 - Python FastAPI 服务（完整 CRUD API + 测试）
+- 股票信息服务（多数据源支持）
+  - ✅ 多数据源架构设计（Provider/Adapter 模式）
+  - ✅ 数据源适配器实现（akshare、yfinance、easyquotation）
+  - ✅ 数据源路由和容错机制
+  - ✅ 多市场支持（A 股、港股、美股）
+  - ✅ 全量股票列表获取
+  - ✅ 单元测试和集成测试
 - Node.js Nest.js 服务（完整 CRUD API + 测试）
 - Rust Axum 服务（完整 CRUD API + 基础测试）
 - Python 股票信息服务（股票信息管理 + 测试）
@@ -469,6 +484,7 @@ cargo test
 ### 📋 待完成
 - 完整的集成测试执行（需要 MongoDB 运行）
 - 部署配置
+- 第二优先级数据源适配器实现（Tushare、IEX Cloud、Alpha Vantage）
 
 ---
 

@@ -317,3 +317,179 @@ class TestStockService:
         # 验证已保存到数据库
         count = await stock_service.collection.count_documents({})
         assert count == 2
+
+    @pytest.mark.asyncio
+    async def test_query_stocks_with_market_type(self, stock_service, sample_stock):
+        """测试按市场类型查询."""
+        # 插入不同市场类型的股票
+        stocks = [
+            {**sample_stock, "ticker": "AAPL", "market_type": "美股"},
+            {**sample_stock, "ticker": "000001", "market_type": "A股"},
+            {**sample_stock, "ticker": "00700", "market_type": "港股"},
+        ]
+        for stock in stocks:
+            await stock_service.collection.insert_one(
+                {
+                    **stock,
+                    "created_at": datetime.now(UTC),
+                    "updated_at": datetime.now(UTC),
+                    "last_updated": datetime.now(UTC),
+                }
+            )
+
+        # 按市场类型筛选
+        params = StockQueryParams(market_type="A股")
+        result = await stock_service.query_stocks(params)
+
+        assert result["total"] == 1
+        assert result["items"][0]["market_type"] == "A股"
+
+    @pytest.mark.asyncio
+    async def test_update_stock_from_provider_success(self, stock_service):
+        """测试从数据源更新股票成功（多数据源）."""
+        # Mock 路由器
+        from unittest.mock import Mock, AsyncMock
+        mock_router = Mock()
+        mock_router.fetch_stock_info = AsyncMock(return_value={
+            "ticker": "AAPL",
+            "name": "Apple Inc.",
+            "market": "NASDAQ",
+            "market_type": "美股",
+            "data_source": "yfinance",
+        })
+        stock_service.router = mock_router
+
+        result = await stock_service.update_stock_from_provider("AAPL")
+
+        assert result is not None
+        assert result["ticker"] == "AAPL"
+        assert result["name"] == "Apple Inc."
+        mock_router.fetch_stock_info.assert_called_once_with("AAPL", market=None, preferred_provider=None)
+
+    @pytest.mark.asyncio
+    async def test_update_stock_from_provider_with_market(self, stock_service):
+        """测试从数据源更新股票（指定市场类型）."""
+        from unittest.mock import Mock, AsyncMock
+        mock_router = Mock()
+        mock_router.fetch_stock_info = AsyncMock(return_value={
+            "ticker": "000001",
+            "name": "平安银行",
+            "market": "SZSE",
+            "market_type": "A股",
+            "data_source": "akshare",
+        })
+        stock_service.router = mock_router
+
+        result = await stock_service.update_stock_from_provider("000001", market="A股")
+
+        assert result is not None
+        assert result["ticker"] == "000001"
+        assert result["market_type"] == "A股"
+        mock_router.fetch_stock_info.assert_called_once_with("000001", market="A股", preferred_provider=None)
+
+    @pytest.mark.asyncio
+    async def test_update_stock_from_provider_with_preferred_provider(self, stock_service):
+        """测试从数据源更新股票（指定首选数据源）."""
+        from unittest.mock import Mock, AsyncMock
+        mock_router = Mock()
+        mock_router.fetch_stock_info = AsyncMock(return_value={
+            "ticker": "AAPL",
+            "name": "Apple Inc.",
+            "data_source": "akshare",
+        })
+        stock_service.router = mock_router
+
+        result = await stock_service.update_stock_from_provider(
+            "AAPL", preferred_provider="akshare"
+        )
+
+        assert result is not None
+        mock_router.fetch_stock_info.assert_called_once_with(
+            "AAPL", market=None, preferred_provider="akshare"
+        )
+
+    @pytest.mark.asyncio
+    async def test_update_stock_from_provider_failed(self, stock_service):
+        """测试从数据源更新股票失败（所有数据源都失败）."""
+        from unittest.mock import Mock, AsyncMock
+        mock_router = Mock()
+        mock_router.fetch_stock_info = AsyncMock(return_value=None)
+        stock_service.router = mock_router
+
+        result = await stock_service.update_stock_from_provider("INVALID")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_update_stock_from_provider_validate_if_new(self, stock_service):
+        """测试从数据源更新股票（验证新股票数据有效性）."""
+        from unittest.mock import Mock, AsyncMock
+        mock_router = Mock()
+        # 返回无效数据（缺少 name 字段）
+        mock_router.fetch_stock_info = AsyncMock(return_value={
+            "ticker": "INVALID",
+            # 缺少 name 字段
+        })
+        stock_service.router = mock_router
+
+        result = await stock_service.update_stock_from_provider(
+            "INVALID", validate_if_new=True
+        )
+
+        assert result is None  # 应该被拒绝
+
+    @pytest.mark.asyncio
+    async def test_update_all_stocks_with_router(self, stock_service, sample_stock):
+        """测试更新所有股票（使用路由器）."""
+        from unittest.mock import Mock, AsyncMock
+        # 先插入一些股票到数据库
+        stocks = [
+            {**sample_stock, "ticker": "AAPL"},
+            {**sample_stock, "ticker": "GOOGL"},
+        ]
+        for stock in stocks:
+            await stock_service.collection.insert_one(
+                {
+                    **stock,
+                    "created_at": datetime.now(UTC),
+                    "updated_at": datetime.now(UTC),
+                    "last_updated": datetime.now(UTC),
+                }
+            )
+
+        # Mock 路由器
+        mock_router = Mock()
+        async def mock_fetch(ticker):
+            if ticker == "AAPL":
+                return {"ticker": "AAPL", "name": "Apple Inc.", "data_source": "yfinance"}
+            elif ticker == "GOOGL":
+                return {"ticker": "GOOGL", "name": "Google", "data_source": "yfinance"}
+            return None
+        mock_router.fetch_stock_info = AsyncMock(side_effect=mock_fetch)
+        stock_service.router = mock_router
+
+        result = await stock_service.update_all_stocks()
+
+        assert result["total"] == 2
+        assert result["success"] == 2
+        assert result["failed"] == 0
+
+    @pytest.mark.asyncio
+    async def test_batch_update_stocks_with_router(self, stock_service):
+        """测试批量更新股票（使用路由器）."""
+        from unittest.mock import Mock, AsyncMock
+        mock_router = Mock()
+        async def mock_fetch(ticker):
+            if ticker == "AAPL":
+                return {"ticker": "AAPL", "name": "Apple Inc.", "data_source": "yfinance"}
+            elif ticker == "GOOGL":
+                return {"ticker": "GOOGL", "name": "Google", "data_source": "akshare"}
+            return None
+        mock_router.fetch_stock_info = AsyncMock(side_effect=mock_fetch)
+        stock_service.router = mock_router
+
+        result = await stock_service.batch_update_stocks(["AAPL", "GOOGL"])
+
+        assert result["total"] == 2
+        assert result["success"] == 2
+        assert result["failed"] == 0
