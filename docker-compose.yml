@@ -123,6 +123,43 @@ services:
       retries: 3
       start_period: 10s
 
+  # BFF (Backend For Frontend) 服务
+  bff-main:
+    build:
+      context: ./bff/bff-main
+      dockerfile: Dockerfile
+    container_name: financial-kanban-bff-main
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      HOST: 0.0.0.0
+      NODE_ENV: production
+      PYTHON_SERVICE_URL: http://python-service:8000
+      NODE_SERVICE_URL: http://node-service:3000
+      RUST_SERVICE_URL: http://rust-service:8080
+      STOCK_INFO_SERVICE_URL: http://py-stock-info-service:8001
+      HTTP_TIMEOUT: 5000
+      HTTP_MAX_REDIRECTS: 5
+    depends_on:
+      python-service:
+        condition: service_healthy
+      node-service:
+        condition: service_healthy
+      rust-service:
+        condition: service_healthy
+      py-stock-info-service:
+        condition: service_healthy
+    networks:
+      - financial-kanban-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/bff/v1/views/dashboard"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   # Nuxt.js 前端
   frontend:
     build:
@@ -138,17 +175,13 @@ services:
       - "3001:3001"
     environment:
       # 前端通过浏览器访问，需要使用宿主机的 localhost
+      NUXT_PUBLIC_BFF_API_URL: http://localhost:4000
+      # 保留原有配置以兼容（可选）
       NUXT_PUBLIC_PYTHON_API_URL: http://localhost:8000
       NUXT_PUBLIC_NODE_API_URL: http://localhost:3000
       NUXT_PUBLIC_RUST_API_URL: http://localhost:8080
     depends_on:
-      python-service:
-        condition: service_healthy
-      node-service:
-        condition: service_healthy
-      rust-service:
-        condition: service_healthy
-      py-stock-info-service:
+      bff-main:
         condition: service_healthy
     networks:
       - financial-kanban-network

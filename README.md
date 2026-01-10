@@ -25,6 +25,14 @@
 - **Rust 服务**: Axum
   - 包管理: Cargo
   - 数据库驱动: mongodb crate
+- **Python 股票信息服务**: FastAPI
+  - 提供股票信息管理功能
+
+### BFF 层
+- **BFF 服务**: NestJS + Bun
+  - 为前端提供定制化、高聚合度的接口
+  - 聚合多个后台服务的数据
+  - 面向前端视图设计接口
 
 ### 数据库
 - **MongoDB**: 文档数据库，适合金融数据灵活存储
@@ -43,7 +51,11 @@ js-financial-kanban/
 ├── services/                # 后端服务
 │   ├── python-service/      # Python FastAPI 服务
 │   ├── node-service/        # Node.js (Bun + Nest.js) 服务
-│   └── rust-service/        # Rust (Axum) 服务
+│   ├── rust-service/        # Rust (Axum) 服务
+│   └── py-stock-info-service/ # Python 股票信息服务
+├── bff/                     # BFF (Backend For Frontend) 层
+│   ├── bff-main/           # 主 BFF 服务（NestJS）
+│   └── shared/             # BFF 层共享代码（可选）
 ├── shared/                  # 共享代码（类型定义、工具函数等）
 ├── docs/                    # 项目文档
 ├── .gitignore
@@ -89,6 +101,12 @@ cd services/rust-service
 cargo build
 ```
 
+#### BFF 服务
+```bash
+cd bff/bff-main
+bun install
+```
+
 ### 环境配置
 
 各服务需要配置 MongoDB 连接字符串，创建对应的 `.env` 文件：
@@ -124,9 +142,22 @@ PORT=8080
 ```bash
 cd frontend
 # 创建 .env 文件
+NUXT_PUBLIC_BFF_API_URL=http://localhost:4000
+# 保留原有配置以兼容（可选）
 NUXT_PUBLIC_PYTHON_API_URL=http://localhost:8000
 NUXT_PUBLIC_NODE_API_URL=http://localhost:3000
 NUXT_PUBLIC_RUST_API_URL=http://localhost:8080
+```
+
+#### BFF 服务
+```bash
+cd bff/bff-main
+# 创建 .env 文件
+PORT=4000
+PYTHON_SERVICE_URL=http://localhost:8000
+NODE_SERVICE_URL=http://localhost:3000
+RUST_SERVICE_URL=http://localhost:8080
+STOCK_INFO_SERVICE_URL=http://localhost:8001
 ```
 
 ### 启动服务
@@ -158,6 +189,12 @@ bun run start:dev
 ```bash
 cd services/rust-service
 cargo run
+```
+
+**BFF 服务** (端口 4000):
+```bash
+cd bff/bff-main
+bun run start:dev
 ```
 
 #### 启动前端（待实现）
@@ -227,10 +264,15 @@ pnpm dev
 启动后，可以通过以下地址访问各服务：
 
 - **前端**: http://localhost:3001
+- **BFF 服务**: http://localhost:4000
+  - Dashboard: http://localhost:4000/api/bff/v1/views/dashboard
+  - Items: http://localhost:4000/api/bff/v1/views/items
+  - Stocks: http://localhost:4000/api/bff/v1/views/stocks
 - **Python 服务**: http://localhost:8000
   - Swagger 文档: http://localhost:8000/docs
 - **Node.js 服务**: http://localhost:3000
 - **Rust 服务**: http://localhost:8080
+- **Python 股票信息服务**: http://localhost:8001
 - **MongoDB**: localhost:27017
 
 ### 环境变量配置
@@ -309,6 +351,12 @@ Docker 部署主要用于：
 - **API 基础路径**: http://localhost:8080/api/v1
 - **健康检查**: http://localhost:8080/health
 
+### BFF 服务 (NestJS)
+- **API 基础路径**: http://localhost:4000/api/bff/v1
+- **Dashboard 视图**: http://localhost:4000/api/bff/v1/views/dashboard
+- **Items 视图**: http://localhost:4000/api/bff/v1/views/items
+- **Stocks 视图**: http://localhost:4000/api/bff/v1/views/stocks
+
 > 提示：可以使用 Postman、Insomnia 或 curl 测试 API
 
 ## 🛠️ 开发指南
@@ -356,6 +404,7 @@ Docker 部署主要用于：
 - [Python 服务 README](./services/python-service/README.md)
 - [Node.js 服务 README](./services/node-service/README.md)
 - [Rust 服务 README](./services/rust-service/README.md)
+- [BFF 服务 README](./bff/bff-main/README.md)
 
 ## 🤝 贡献
 
@@ -411,6 +460,8 @@ cargo test
 - Python FastAPI 服务（完整 CRUD API + 测试）
 - Node.js Nest.js 服务（完整 CRUD API + 测试）
 - Rust Axum 服务（完整 CRUD API + 基础测试）
+- Python 股票信息服务（股票信息管理 + 测试）
+- BFF 层（数据聚合、视图接口、Docker 集成）
 
 ### 🚧 进行中
 - 集成测试和验证

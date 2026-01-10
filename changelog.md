@@ -1472,3 +1472,151 @@ runtimeConfig: {
 - 新项目提供了丰富的示例代码，可以作为开发参考
 - 建议先熟悉新项目的结构和组件库，再进行业务功能开发
 - 对比文档已创建在 `docs/前端项目重构对比分析.md`，包含详细的迁移清单
+
+## 变更记录 - BFF 层设计与实现
+
+### 主要变更点
+- 创建了 BFF（Backend For Frontend）层，为前端提供定制化、高聚合度的接口
+- 实现了三个视图模块：Dashboard、Items、Stocks
+- 实现了四个后台服务客户端：Python、Node、Rust、股票信息服务
+- 集成了 Docker 部署方案
+- 配置了 Monorepo 管理（pnpm workspace）
+
+### 详细变更说明
+
+#### BFF 层架构设计
+- **技术选型**：使用 NestJS 框架，与现有 Node.js 服务技术栈一致
+- **项目结构**：按视图拆分模块（dashboard、items、stocks），面向前端页面设计
+- **目录组织**：
+  - `bff/bff-main/`：主 BFF 服务
+  - `src/views/`：视图模块（按前端页面组织）
+  - `src/clients/`：后台服务客户端
+  - `src/common/`：公共模块（拦截器、过滤器、工具函数）
+
+#### HTTP 客户端模块
+实现了四个后台服务的 HTTP 客户端：
+- **PythonClient**：调用 Python FastAPI 服务
+- **NodeClient**：调用 Node.js Nest.js 服务
+- **RustClient**：调用 Rust Axum 服务
+- **StockInfoClient**：调用 Python 股票信息服务
+
+所有客户端都配置了超时和重试策略，使用 `@nestjs/axios` 进行 HTTP 请求。
+
+#### 视图模块实现
+
+1. **Dashboard 视图**（`/api/bff/v1/views/dashboard`）：
+   - 聚合所有服务的统计信息
+   - 获取最近的 Items 和 Stocks 数据
+   - 支持部分服务失败，使用 `Promise.allSettled` 处理
+
+2. **Items 视图**（`/api/bff/v1/views/items`）：
+   - 聚合 Python、Node、Rust 三个服务的 Items 数据
+   - 实现数据格式统一转换
+   - 实现数据去重（按 name）和排序（按更新时间）
+
+3. **Stocks 视图**（`/api/bff/v1/views/stocks`）：
+   - 聚合股票信息服务的数据
+   - 支持获取所有股票和单个股票信息
+
+#### 公共模块
+
+1. **统一响应格式**：
+   - 使用 `TransformInterceptor` 统一响应格式：`{ code, message, data, timestamp }`
+   - 全局配置，所有接口自动应用
+
+2. **错误处理**：
+   - 使用 `HttpExceptionFilter` 统一错误响应格式
+   - 支持部分服务失败，返回空数组或默认值
+
+3. **工具函数**：
+   - `promise.util.ts`：提供 `allSettledWithNull`、`withTimeout`、`retry` 等工具函数
+   - `transform.util.ts`：提供数据转换、去重、排序等工具函数
+
+#### Monorepo 配置
+- 创建了 `pnpm-workspace.yaml`，配置了 workspace
+- BFF 项目作为独立的 workspace 包管理
+- 支持在根目录统一管理依赖
+
+#### Docker 集成
+- 创建了 `bff/bff-main/Dockerfile`，使用多阶段构建
+- 使用 Bun 作为运行时
+- 集成到根目录 `docker-compose.yml`：
+  - BFF 服务依赖所有后台服务
+  - 前端服务依赖 BFF 服务（而非直接依赖后台服务）
+  - 配置了健康检查和环境变量
+
+### 关键代码片段
+
+**HTTP 客户端示例**:
+```typescript
+@Injectable()
+export class PythonClient {
+  private readonly baseUrl: string;
+
+  constructor(private readonly httpService: HttpService) {
+    this.baseUrl = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
+  }
+
+  async getItems(): Promise<PythonItem[]> {
+    const response = await firstValueFrom(
+      this.httpService.get(`${this.baseUrl}/api/v1/items`),
+    );
+    return response.data.data || [];
+  }
+}
+```
+
+**视图服务示例（数据聚合）**:
+```typescript
+async getAllItems(): Promise<UnifiedItem[]> {
+  // 并行获取所有服务的 items，允许部分失败
+  const [pythonItems, nodeItems, rustItems] = await allSettledWithNull([
+    this.pythonClient.getItems(),
+    this.nodeClient.getItems(),
+    this.rustClient.getItems(),
+  ]);
+
+  // 转换数据格式并合并去重
+  const unifiedItems = [
+    ...(pythonItems || []).map(transformPythonItem),
+    ...(nodeItems || []).map(transformNodeItem),
+    ...(rustItems || []).map(transformRustItem),
+  ];
+
+  return sortItemsByUpdatedAt(mergeAndDeduplicateItems(unifiedItems));
+}
+```
+
+**Docker Compose 配置**:
+```yaml
+bff-main:
+  build:
+    context: ./bff/bff-main
+    dockerfile: Dockerfile
+  ports:
+    - "4000:4000"
+  environment:
+    PYTHON_SERVICE_URL: http://python-service:8000
+    NODE_SERVICE_URL: http://node-service:3000
+    RUST_SERVICE_URL: http://rust-service:8080
+    STOCK_INFO_SERVICE_URL: http://py-stock-info-service:8001
+  depends_on:
+    python-service:
+      condition: service_healthy
+    # ... 其他服务依赖
+```
+
+### 注意事项
+- BFF 层使用端口 4000，避免与现有服务冲突
+- 所有接口使用 `/api/bff/v1` 前缀
+- 支持部分服务失败，使用 `Promise.allSettled` 处理
+- 数据转换和去重逻辑在 Service 层实现
+- Docker 环境变量使用服务名（如 `python-service`），而非 `localhost`
+- 前端需要更新为调用 BFF 接口，而非直接调用后台服务（待实现）
+
+### 后续工作
+- [ ] 前端集成：更新前端代码调用 BFF 接口
+- [ ] 单元测试：为 HTTP 客户端和 Service 编写测试
+- [ ] 集成测试：测试 BFF 与后台服务的集成
+- [ ] 性能优化：实现缓存策略（可选）
+- [ ] API 文档：添加 Swagger/OpenAPI 文档（可选）
