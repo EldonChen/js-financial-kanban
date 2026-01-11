@@ -27,8 +27,10 @@ export class StocksService {
   async updateStock(ticker: string): Promise<Stock> {
     try {
       return await this.stockInfoClient.upsertStock(ticker);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`StocksService.updateStock(${ticker}) error:`, error);
+      // 重新抛出错误，让 Controller 层处理
+      // 错误信息已经在 StockInfoClient 中进行了改进
       throw error;
     }
   }

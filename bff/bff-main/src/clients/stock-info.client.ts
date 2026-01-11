@@ -8,9 +8,15 @@ export interface Stock {
   name?: string;
   sector?: string;
   industry?: string;
+  market?: string; // 市场（NASDAQ, NYSE, SSE, SZSE 等）
+  market_type?: string; // 市场类型（A股、港股、美股）
+  country?: string; // 国家
+  exchange?: string; // 交易所代码
+  currency?: string; // 货币
   market_cap?: number;
   price?: number;
   volume?: number;
+  data_source?: string; // 数据来源（yfinance、akshare、easyquotation 等）
   created_at?: string;
   last_updated?: string;
 }
@@ -64,17 +70,56 @@ export class StockInfoClient {
 
   /**
    * 创建或更新股票
+   * 注意：股票更新操作可能需要从外部数据源获取数据，耗时较长
    */
   async upsertStock(ticker: string): Promise<Stock> {
     try {
+      // 为股票更新操作设置更长的超时时间（60秒）
+      const updateTimeout = parseInt(
+        process.env.STOCK_UPDATE_TIMEOUT || '60000',
+        10,
+      );
       const response: AxiosResponse<StockApiResponse<Stock>> =
         await firstValueFrom(
           this.httpService.post(
             `${this.baseUrl}/api/v1/stocks/${ticker}/update`,
+            {},
+            {
+              timeout: updateTimeout,
+            },
           ),
         );
       return response.data.data;
-    } catch (error) {
+    } catch (error: any) {
+      // 改进错误处理，提供更友好的错误信息
+      if (error.code === 'ECONNABORTED') {
+        const timeoutError = new Error(
+          `股票更新超时：${ticker} 的数据更新操作超过 ${error.config?.timeout || 60000}ms，请稍后重试`,
+        );
+        (timeoutError as any).code = 'STOCK_UPDATE_TIMEOUT';
+        console.error(`StockInfoClient.upsertStock(${ticker}) timeout:`, timeoutError.message);
+        throw timeoutError;
+      }
+      if (error.response) {
+        // HTTP 错误响应
+        const httpError = new Error(
+          `股票更新失败：${error.response.data?.detail || error.response.data?.message || error.message}`,
+        );
+        (httpError as any).status = error.response.status;
+        (httpError as any).code = 'STOCK_UPDATE_HTTP_ERROR';
+        console.error(`StockInfoClient.upsertStock(${ticker}) HTTP error:`, httpError.message);
+        throw httpError;
+      }
+      if (error.request) {
+        // 请求已发出但没有收到响应
+        const networkError = new Error(
+          `股票更新失败：无法连接到股票信息服务 (${this.baseUrl})，请检查服务是否运行`,
+        );
+        (networkError as any).code = 'STOCK_UPDATE_NETWORK_ERROR';
+        console.error(`StockInfoClient.upsertStock(${ticker}) network error:`, networkError.message);
+        throw networkError;
+      }
+      // 其他错误
       console.error(`StockInfoClient.upsertStock(${ticker}) error:`, error);
       throw error;
     }

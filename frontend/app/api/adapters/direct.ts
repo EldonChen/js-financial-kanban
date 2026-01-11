@@ -4,7 +4,8 @@
  */
 
 import type { ApiAdapter } from './index'
-import type { ApiResponse, ApiError, RequestConfig } from '../types'
+import type { ApiResponse, RequestConfig } from '../types'
+import { ApiError } from '../types'
 
 export class DirectAdapter implements ApiAdapter {
   private baseUrl: string

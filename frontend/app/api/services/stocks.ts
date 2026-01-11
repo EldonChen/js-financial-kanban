@@ -26,10 +26,22 @@ export class StocksService {
 
   /**
    * 获取单个股票
+   * 如果股票不存在，返回 null
    */
-  async getStock(ticker: string): Promise<Stock> {
-    const response = await this.client.get<Stock>(`${this.basePath}/${ticker}`)
-    return response.data
+  async getStock(ticker: string): Promise<Stock | null> {
+    try {
+      const response = await this.client.get<Stock>(`${this.basePath}/${ticker}`)
+      // 如果 data 为 null，表示股票不存在
+      return response.data || null
+    }
+    catch (error: any) {
+      // 如果是 404 错误，返回 null 而不是抛出错误
+      if (error.code === 404) {
+        return null
+      }
+      // 其他错误继续抛出
+      throw error
+    }
   }
 
   /**

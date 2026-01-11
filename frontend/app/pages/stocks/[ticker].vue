@@ -15,22 +15,46 @@ const loading = ref(false)
 const updating = ref(false)
 const deleting = ref(false)
 const showDeleteDialog = ref(false)
+const notFound = ref(false) // 股票不存在标志
 
 // 加载股票详情
 async function loadStock() {
   loading.value = true
+  notFound.value = false
+  stock.value = null
   try {
-    stock.value = await stocksService.getStock(ticker.value)
-  }
-  catch (error) {
-    // 如果股票不存在（404），跳转到 404 页面
-    if (error instanceof ApiError && error.code === 404) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: `股票 ${ticker.value} 不存在`,
-      })
+    const result = await stocksService.getStock(ticker.value)
+    // 如果返回 null，表示股票不存在
+    if (result === null || result === undefined) {
+      notFound.value = true
+      stock.value = null
     }
-    handleApiError(error, { defaultMessage: '无法加载股票信息' })
+    else {
+      stock.value = result
+      notFound.value = false
+    }
+  }
+  catch (error: any) {
+    console.error('loadStock error:', error)
+    // 如果股票不存在（404），在页面中显示提示信息
+    const isNotFound = error instanceof ApiError && error.code === 404
+      || error?.code === 404
+      || error?.status === 404
+      || (error?.data && error.data.code === 404)
+      || (error?.response?.status === 404)
+    
+    if (isNotFound) {
+      console.log('Stock not found, showing not found card')
+      notFound.value = true
+      stock.value = null
+    }
+    else {
+      // 其他错误显示错误提示
+      handleApiError(error, { defaultMessage: '无法加载股票信息' })
+      // 对于其他错误，也显示 notFound 提示，避免空白页面
+      notFound.value = true
+      stock.value = null
+    }
   }
   finally {
     loading.value = false
@@ -142,6 +166,38 @@ function formatDate(dateString?: string): string {
   }
 }
 
+// 获取市场类型的 Badge 样式
+function getMarketTypeVariant(marketType?: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (!marketType)
+    return 'outline'
+  if (marketType.includes('A股'))
+    return 'destructive' // 红色表示 A 股
+  if (marketType.includes('港股'))
+    return 'secondary' // 灰色表示港股
+  if (marketType.includes('美股'))
+    return 'default' // 默认样式表示美股
+  return 'outline'
+}
+
+// 数据源链接映射
+const dataSourceLinks: Record<string, string> = {
+  akshare: 'https://github.com/akfamily/akshare',
+  yfinance: 'https://github.com/ranaroussi/yfinance',
+  easyquotation: 'https://github.com/shidenggui/easyquotation',
+  tushare: 'https://tushare.pro/',
+  'iex-cloud': 'https://iexcloud.io/',
+  'alpha-vantage': 'https://www.alphavantage.co/',
+}
+
+// 获取数据源链接
+function getDataSourceUrl(dataSource?: string): string | null {
+  if (!dataSource)
+    return null
+  // 处理可能的变体名称
+  const normalized = dataSource.toLowerCase().replace(/_/g, '-')
+  return dataSourceLinks[normalized] || dataSourceLinks[dataSource.toLowerCase()] || null
+}
+
 onMounted(() => {
   loadStock()
 })
@@ -159,15 +215,38 @@ onMounted(() => {
           <h2 class="text-2xl font-bold tracking-tight">
             {{ stock?.name || ticker }}
           </h2>
-          <p class="text-muted-foreground">
-            {{ ticker }}
-          </p>
+          <div class="flex flex-wrap items-center gap-2 mt-1">
+            <p class="text-muted-foreground">
+              {{ ticker }}
+            </p>
+            <!-- 市场类型标签 -->
+            <Badge
+              v-if="stock?.market_type"
+              :variant="getMarketTypeVariant(stock.market_type)"
+            >
+              {{ stock.market_type }}
+            </Badge>
+            <!-- 国家标签 -->
+            <Badge
+              v-if="stock?.country"
+              variant="outline"
+            >
+              {{ stock.country }}
+            </Badge>
+            <!-- 市场标签 -->
+            <Badge
+              v-if="stock?.market"
+              variant="secondary"
+            >
+              {{ stock.market }}
+            </Badge>
+          </div>
         </div>
       </div>
       <div class="flex gap-2">
         <Button
           variant="outline"
-          :disabled="loading || updating"
+          :disabled="loading || updating || notFound"
           @click="updateStock"
         >
           <Icon
@@ -178,7 +257,7 @@ onMounted(() => {
         </Button>
         <Button
           variant="destructive"
-          :disabled="loading || deleting"
+          :disabled="loading || deleting || notFound"
           @click="openDeleteDialog"
         >
           <Icon name="lucide:trash-2" class="h-4 w-4 mr-2" />
@@ -215,6 +294,41 @@ onMounted(() => {
         </CardContent>
       </Card>
     </div>
+
+    <!-- 股票不存在提示 -->
+    <Card v-else-if="!loading && notFound">
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2">
+          <Icon name="lucide:alert-circle" class="h-5 w-5 text-destructive" />
+          股票不存在
+        </CardTitle>
+        <CardDescription>
+          未找到股票代码为 "{{ ticker }}" 的股票信息
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div class="space-y-4">
+          <p class="text-muted-foreground">
+            可能的原因：
+          </p>
+          <ul class="list-disc list-inside space-y-2 text-muted-foreground">
+            <li>股票代码输入错误</li>
+            <li>该股票尚未添加到系统中</li>
+            <li>该股票可能已被删除</li>
+          </ul>
+          <div class="flex gap-2 pt-4">
+            <Button variant="outline" @click="goBack">
+              <Icon name="lucide:arrow-left" class="h-4 w-4 mr-2" />
+              返回
+            </Button>
+            <Button @click="loadStock">
+              <Icon name="lucide:refresh-cw" class="h-4 w-4 mr-2" />
+              重新加载
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
 
     <!-- 股票详情 -->
     <template v-else-if="stock">
@@ -287,7 +401,23 @@ onMounted(() => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="space-y-1">
+              <Label class="text-muted-foreground">数据源来源</Label>
+              <div class="text-lg">
+                <a
+                  v-if="stock.data_source && getDataSourceUrl(stock.data_source)"
+                  :href="getDataSourceUrl(stock.data_source)!"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  {{ stock.data_source }}
+                  <Icon name="lucide:external-link" class="h-4 w-4" />
+                </a>
+                <span v-else>{{ stock.data_source || '-' }}</span>
+              </div>
+            </div>
             <div class="space-y-1">
               <Label class="text-muted-foreground">创建时间</Label>
               <p class="text-lg">{{ formatDate(stock.created_at) }}</p>

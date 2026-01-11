@@ -8,7 +8,7 @@ import { StockInfoClient } from './stock-info.client';
 @Module({
   imports: [
     HttpModule.register({
-      timeout: parseInt(process.env.HTTP_TIMEOUT || '5000', 10),
+      timeout: parseInt(process.env.HTTP_TIMEOUT || '30000', 10), // 默认 30 秒，股票数据更新可能需要更长时间
       maxRedirects: parseInt(process.env.HTTP_MAX_REDIRECTS || '5', 10),
     }),
   ],

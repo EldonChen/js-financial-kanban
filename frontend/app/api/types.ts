@@ -107,9 +107,15 @@ export interface Stock {
   name?: string
   sector?: string
   industry?: string
+  market?: string // 市场（NASDAQ, NYSE, SSE, SZSE 等）
+  market_type?: string // 市场类型（A股、港股、美股）
+  country?: string // 国家
+  exchange?: string // 交易所代码
+  currency?: string // 货币
   market_cap?: number
   price?: number
   volume?: number
+  data_source?: string // 数据来源（yfinance、akshare、easyquotation 等）
   created_at?: string
   last_updated?: string
 }
