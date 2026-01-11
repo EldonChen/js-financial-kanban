@@ -3,8 +3,8 @@
  * 当前阶段使用，后续可切换到 BFF
  */
 
-import type { ApiAdapter } from './index'
 import type { ApiResponse, RequestConfig } from '../types'
+import type { ApiAdapter } from './index'
 import { ApiError } from '../types'
 
 export class DirectAdapter implements ApiAdapter {

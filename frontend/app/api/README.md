@@ -77,7 +77,7 @@ catch (error) {
 ### 错误类型判断
 
 ```typescript
-import { isNetworkError, isClientError, isServerError } from '~/api/utils'
+import { isClientError, isNetworkError, isServerError } from '~/api/utils'
 
 if (isNetworkError(error)) {
   // 处理网络错误
@@ -184,8 +184,8 @@ const client = createApiClient(apiUrl) // 默认使用 DirectAdapter
 ### 切换到 BFF（后续）
 
 ```typescript
-import { ApiClient } from '~/api/client'
 import { BffAdapter } from '~/api/adapters/bff'
+import { ApiClient } from '~/api/client'
 
 const adapter = new BffAdapter('http://localhost:4000')
 const client = new ApiClient(adapter)

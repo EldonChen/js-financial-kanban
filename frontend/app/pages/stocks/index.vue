@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import NumberFlow from '@number-flow/vue'
-import { TrendingUp, BarChart3, Building2, Globe, Database, Clock } from 'lucide-vue-next'
 import type { DashboardData } from '~/api/types'
+import NumberFlow from '@number-flow/vue'
+import { BarChart3, Building2, Clock, Database, Globe } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import { useDashboardService } from '~/composables/useApi'
 import { handleApiError } from '~/composables/useApiError'
-import { toast } from 'vue-sonner'
 
 const dashboardService = useDashboardService()
 const router = useRouter()
@@ -136,7 +136,7 @@ onMounted(() => {
         >
           <Icon
             :name="refreshing ? 'lucide:loader-2' : 'lucide:refresh-cw'"
-            :class="['h-4 w-4 mr-2', refreshing && 'animate-spin']"
+            class="h-4 w-4 mr-2" :class="[refreshing && 'animate-spin']"
           />
           刷新
         </Button>
@@ -146,13 +146,17 @@ onMounted(() => {
     <!-- 加载状态 -->
     <div v-if="loading" class="flex flex-col items-center justify-center py-12">
       <Icon name="lucide:loader-2" class="h-8 w-8 mb-4 text-muted-foreground animate-spin" />
-      <p class="text-muted-foreground">加载中...</p>
+      <p class="text-muted-foreground">
+        加载中...
+      </p>
     </div>
 
     <!-- 错误状态 -->
     <div v-else-if="error" class="flex flex-col items-center justify-center py-12">
       <Icon name="lucide:alert-circle" class="h-12 w-12 mb-4 text-destructive" />
-      <p class="text-destructive mb-4">{{ error }}</p>
+      <p class="text-destructive mb-4">
+        {{ error }}
+      </p>
       <Button variant="outline" @click="loadDashboardData">
         <Icon name="lucide:refresh-cw" class="h-4 w-4 mr-2" />
         重试
@@ -311,7 +315,9 @@ onMounted(() => {
             <!-- 空状态 -->
             <div v-if="dashboardData.recentStocks.length === 0" class="py-8 text-center">
               <Icon name="lucide:inbox" class="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p class="text-muted-foreground mb-4">暂无股票数据</p>
+              <p class="text-muted-foreground mb-4">
+                暂无股票数据
+              </p>
               <Button variant="outline" @click="goToStocksList">
                 前往股票列表
               </Button>

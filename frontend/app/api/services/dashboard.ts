@@ -3,9 +3,9 @@
  * 通过 BFF 层调用 Dashboard 视图接口
  */
 
+import type { DashboardData } from '../types'
 import { BffAdapter } from '../adapters/bff'
 import { ApiClient } from '../client'
-import type { DashboardData } from '../types'
 
 export class DashboardService {
   private client: ApiClient

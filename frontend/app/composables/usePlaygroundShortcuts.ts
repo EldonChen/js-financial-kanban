@@ -2,8 +2,8 @@
  * Playground 页面键盘快捷键
  */
 
-import { useShortcuts } from './useShortcuts'
 import { whenever } from '@vueuse/core'
+import { useShortcuts } from './useShortcuts'
 
 export function usePlaygroundShortcuts(options: {
   onCreate?: () => void

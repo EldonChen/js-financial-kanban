@@ -77,4 +77,149 @@ export class StocksService {
       throw error;
     }
   }
+
+  /**
+   * 批量更新股票（SSE 流式响应）
+   * 代理后端的 SSE 流，转发给前端
+   */
+  async fetchAllStocksSSE(
+    market?: string,
+    delay?: string,
+    res?: any,
+  ): Promise<void> {
+    try {
+      await this.stockInfoClient.fetchAllStocksSSE(market, delay, res);
+    } catch (error) {
+      console.error('StocksService.fetchAllStocksSSE error:', error);
+      // 如果响应头还没有发送，发送错误响应
+      if (res && !res.headersSent) {
+        res.status(500).json({
+          code: 500,
+          message: '批量更新失败',
+          data: null,
+        });
+      } else if (res) {
+        res.end();
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 获取更新计划列表
+   */
+  async getSchedules(params?: {
+    page?: number;
+    page_size?: number;
+    is_active?: boolean;
+  }): Promise<{
+    items: any[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> {
+    try {
+      return await this.stockInfoClient.getSchedules(params);
+    } catch (error) {
+      console.error('StocksService.getSchedules error:', error);
+      // 返回空分页响应而不是抛出错误，允许部分失败
+      return {
+        items: [],
+        total: 0,
+        page: params?.page || 1,
+        page_size: params?.page_size || 20,
+        total_pages: 0,
+      };
+    }
+  }
+
+  /**
+   * 获取更新计划状态统计
+   */
+  async getScheduleStatus(): Promise<{
+    total: number;
+    active: number;
+    inactive: number;
+    next_run_count: number;
+  }> {
+    try {
+      return await this.stockInfoClient.getScheduleStatus();
+    } catch (error) {
+      console.error('StocksService.getScheduleStatus error:', error);
+      // 返回默认值而不是抛出错误
+      return {
+        total: 0,
+        active: 0,
+        inactive: 0,
+        next_run_count: 0,
+      };
+    }
+  }
+
+  /**
+   * 切换更新计划激活状态
+   */
+  async toggleSchedule(scheduleId: string): Promise<any> {
+    try {
+      return await this.stockInfoClient.toggleSchedule(scheduleId);
+    } catch (error) {
+      console.error(`StocksService.toggleSchedule(${scheduleId}) error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 删除更新计划
+   */
+  async deleteSchedule(scheduleId: string): Promise<void> {
+    try {
+      await this.stockInfoClient.deleteSchedule(scheduleId);
+    } catch (error) {
+      console.error(`StocksService.deleteSchedule(${scheduleId}) error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取数据源状态信息
+   */
+  async getProviderStatus(): Promise<{
+    total_providers: number;
+    providers: Record<string, any>;
+    market_coverage: Record<string, string[]>;
+  }> {
+    try {
+      return await this.stockInfoClient.getProviderStatus();
+    } catch (error) {
+      console.error('StocksService.getProviderStatus error:', error);
+      // 返回默认值而不是抛出错误
+      return {
+        total_providers: 0,
+        providers: {},
+        market_coverage: {},
+      };
+    }
+  }
+
+  /**
+   * 创建更新计划
+   */
+  async createSchedule(scheduleData: {
+    schedule_type: 'cron' | 'interval';
+    schedule_config: {
+      cron?: string;
+      interval?: number;
+    };
+    is_active?: boolean;
+    ticker?: string;
+    name?: string;
+  }): Promise<any> {
+    try {
+      return await this.stockInfoClient.createSchedule(scheduleData);
+    } catch (error) {
+      console.error('StocksService.createSchedule error:', error);
+      throw error;
+    }
+  }
 }

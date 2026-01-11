@@ -44,7 +44,7 @@ const services = [
       >
         <CardHeader>
           <div class="flex items-center gap-3">
-            <div :class="['p-2 rounded-lg', service.color]">
+            <div class="p-2 rounded-lg" :class="[service.color]">
               <Icon :name="service.icon" class="h-6 w-6" />
             </div>
             <CardTitle>{{ service.name }}</CardTitle>

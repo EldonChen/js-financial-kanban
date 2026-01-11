@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Stock } from '~/api/types'
+import { toast } from 'vue-sonner'
 import { ApiError } from '~/api/types'
 import { useStocksService } from '~/composables/useApi'
 import { handleApiError } from '~/composables/useApiError'
-import { toast } from 'vue-sonner'
 
 const route = useRoute()
 const router = useRouter()
@@ -42,7 +42,7 @@ async function loadStock() {
       || error?.status === 404
       || (error?.data && error.data.code === 404)
       || (error?.response?.status === 404)
-    
+
     if (isNotFound) {
       console.log('Stock not found, showing not found card')
       notFound.value = true
@@ -181,10 +181,10 @@ function getMarketTypeVariant(marketType?: string): 'default' | 'secondary' | 'd
 
 // 数据源链接映射
 const dataSourceLinks: Record<string, string> = {
-  akshare: 'https://github.com/akfamily/akshare',
-  yfinance: 'https://github.com/ranaroussi/yfinance',
-  easyquotation: 'https://github.com/shidenggui/easyquotation',
-  tushare: 'https://tushare.pro/',
+  'akshare': 'https://github.com/akfamily/akshare',
+  'yfinance': 'https://github.com/ranaroussi/yfinance',
+  'easyquotation': 'https://github.com/shidenggui/easyquotation',
+  'tushare': 'https://tushare.pro/',
   'iex-cloud': 'https://iexcloud.io/',
   'alpha-vantage': 'https://www.alphavantage.co/',
 }
@@ -251,7 +251,7 @@ onMounted(() => {
         >
           <Icon
             :name="updating ? 'lucide:loader-2' : 'lucide:refresh-cw'"
-            :class="['h-4 w-4 mr-2', updating && 'animate-spin']"
+            class="h-4 w-4 mr-2" :class="[updating && 'animate-spin']"
           />
           更新数据
         </Button>
@@ -344,19 +344,27 @@ onMounted(() => {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="space-y-1">
               <Label class="text-muted-foreground">股票代码</Label>
-              <p class="text-lg font-semibold">{{ stock.ticker }}</p>
+              <p class="text-lg font-semibold">
+                {{ stock.ticker }}
+              </p>
             </div>
             <div class="space-y-1">
               <Label class="text-muted-foreground">股票名称</Label>
-              <p class="text-lg font-semibold">{{ stock.name || '-' }}</p>
+              <p class="text-lg font-semibold">
+                {{ stock.name || '-' }}
+              </p>
             </div>
             <div class="space-y-1">
               <Label class="text-muted-foreground">行业</Label>
-              <p class="text-lg">{{ stock.industry || '-' }}</p>
+              <p class="text-lg">
+                {{ stock.industry || '-' }}
+              </p>
             </div>
             <div class="space-y-1">
               <Label class="text-muted-foreground">板块</Label>
-              <p class="text-lg">{{ stock.sector || '-' }}</p>
+              <p class="text-lg">
+                {{ stock.sector || '-' }}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -374,19 +382,27 @@ onMounted(() => {
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="space-y-1">
               <Label class="text-muted-foreground">当前价格</Label>
-              <p class="text-2xl font-bold">{{ formatCurrency(stock.price) }}</p>
+              <p class="text-2xl font-bold">
+                {{ formatCurrency(stock.price) }}
+              </p>
             </div>
             <div class="space-y-1">
               <Label class="text-muted-foreground">市值</Label>
-              <p class="text-2xl font-bold">{{ formatMarketCap(stock.market_cap) }}</p>
+              <p class="text-2xl font-bold">
+                {{ formatMarketCap(stock.market_cap) }}
+              </p>
             </div>
             <div class="space-y-1">
               <Label class="text-muted-foreground">成交量</Label>
-              <p class="text-2xl font-bold">{{ formatNumber(stock.volume) }}</p>
+              <p class="text-2xl font-bold">
+                {{ formatNumber(stock.volume) }}
+              </p>
             </div>
             <div class="space-y-1">
               <Label class="text-muted-foreground">市值（原始值）</Label>
-              <p class="text-lg">{{ formatCurrency(stock.market_cap) }}</p>
+              <p class="text-lg">
+                {{ formatCurrency(stock.market_cap) }}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -420,11 +436,15 @@ onMounted(() => {
             </div>
             <div class="space-y-1">
               <Label class="text-muted-foreground">创建时间</Label>
-              <p class="text-lg">{{ formatDate(stock.created_at) }}</p>
+              <p class="text-lg">
+                {{ formatDate(stock.created_at) }}
+              </p>
             </div>
             <div class="space-y-1">
               <Label class="text-muted-foreground">最后更新时间</Label>
-              <p class="text-lg">{{ formatDate(stock.last_updated) }}</p>
+              <p class="text-lg">
+                {{ formatDate(stock.last_updated) }}
+              </p>
             </div>
           </div>
         </CardContent>

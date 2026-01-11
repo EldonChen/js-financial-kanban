@@ -3,8 +3,8 @@
  * 后续切换到 BFF 架构时使用
  */
 
-import type { ApiAdapter } from './index'
 import type { ApiResponse, RequestConfig } from '../types'
+import type { ApiAdapter } from './index'
 import { ApiError } from '../types'
 
 export class BffAdapter implements ApiAdapter {

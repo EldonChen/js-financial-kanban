@@ -4,7 +4,7 @@ const route = useRoute()
 function setLinks() {
   // 使用 route.path 而不是 route.fullPath，避免包含查询参数
   const path = route.path
-  
+
   if (path === '/') {
     return [{ title: 'Home', href: '/' }]
   }

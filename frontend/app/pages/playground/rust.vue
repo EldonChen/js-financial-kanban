@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Item, CreateItemDto, UpdateItemDto } from '~/api/types'
+import type { CreateItemDto, Item } from '~/api/types'
+import { toast } from 'vue-sonner'
 import { useRustService } from '~/composables/useApi'
 import { handleApiError } from '~/composables/useApiError'
-import { toast } from 'vue-sonner'
 
 const rustService = useRustService()
 
@@ -172,10 +172,10 @@ onMounted(() => {
         </p>
       </div>
       <div class="flex gap-2">
-        <Button variant="outline" @click="loadItems" :disabled="loading">
+        <Button variant="outline" :disabled="loading" @click="loadItems">
           <Icon
             :name="loading ? 'lucide:loader-2' : 'lucide:refresh-cw'"
-            :class="['h-4 w-4', loading && 'animate-spin']"
+            class="h-4 w-4" :class="[loading && 'animate-spin']"
           />
         </Button>
         <Button @click="showCreateDialog = true">
@@ -214,14 +214,18 @@ onMounted(() => {
         </div>
         <div v-else-if="items.length === 0" class="flex flex-col items-center justify-center py-8 text-center">
           <Icon name="lucide:inbox" class="h-12 w-12 text-muted-foreground mb-4" />
-          <p class="text-muted-foreground">暂无数据</p>
+          <p class="text-muted-foreground">
+            暂无数据
+          </p>
           <Button variant="outline" class="mt-4" @click="showCreateDialog = true">
             创建第一个项目
           </Button>
         </div>
         <div v-else-if="filteredItems.length === 0" class="flex flex-col items-center justify-center py-8 text-center">
           <Icon name="lucide:search-x" class="h-12 w-12 text-muted-foreground mb-4" />
-          <p class="text-muted-foreground">未找到匹配的项目</p>
+          <p class="text-muted-foreground">
+            未找到匹配的项目
+          </p>
           <Button variant="outline" class="mt-4" @click="searchQuery = ''">
             清除搜索
           </Button>
@@ -232,8 +236,12 @@ onMounted(() => {
               <TableHead>ID</TableHead>
               <TableHead>名称</TableHead>
               <TableHead>描述</TableHead>
-              <TableHead class="text-right">价格</TableHead>
-              <TableHead class="text-right">操作</TableHead>
+              <TableHead class="text-right">
+                价格
+              </TableHead>
+              <TableHead class="text-right">
+                操作
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

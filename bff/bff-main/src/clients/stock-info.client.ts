@@ -236,4 +236,215 @@ export class StockInfoClient {
       throw error;
     }
   }
+
+  /**
+   * 获取更新计划列表
+   */
+  async getSchedules(params?: {
+    page?: number;
+    page_size?: number;
+    is_active?: boolean;
+  }): Promise<{
+    items: any[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> {
+    try {
+      const queryParams: Record<string, any> = {};
+      if (params?.page) queryParams.page = params.page;
+      if (params?.page_size) queryParams.page_size = params.page_size;
+      if (params?.is_active !== undefined) queryParams.is_active = params.is_active;
+
+      const response: AxiosResponse<
+        StockApiResponse<{
+          items: any[];
+          total: number;
+          page: number;
+          page_size: number;
+          total_pages: number;
+        }>
+      > = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/api/v1/schedules`, {
+          params: queryParams,
+        }),
+      );
+      return response.data.data || {
+        items: [],
+        total: 0,
+        page: params?.page || 1,
+        page_size: params?.page_size || 20,
+        total_pages: 0,
+      };
+    } catch (error) {
+      console.error('StockInfoClient.getSchedules error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取更新计划状态统计
+   */
+  async getScheduleStatus(): Promise<{
+    total: number;
+    active: number;
+    inactive: number;
+    next_run_count: number;
+  }> {
+    try {
+      const response: AxiosResponse<
+        StockApiResponse<{
+          total: number;
+          active: number;
+          inactive: number;
+          next_run_count: number;
+        }>
+      > = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/api/v1/schedules/status`),
+      );
+      return response.data.data || {
+        total: 0,
+        active: 0,
+        inactive: 0,
+        next_run_count: 0,
+      };
+    } catch (error) {
+      console.error('StockInfoClient.getScheduleStatus error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 切换更新计划激活状态
+   */
+  async toggleSchedule(scheduleId: string): Promise<any> {
+    try {
+      const response: AxiosResponse<StockApiResponse<any>> =
+        await firstValueFrom(
+          this.httpService.post(
+            `${this.baseUrl}/api/v1/schedules/${scheduleId}/toggle`,
+          ),
+        );
+      return response.data.data;
+    } catch (error) {
+      console.error(`StockInfoClient.toggleSchedule(${scheduleId}) error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 删除更新计划
+   */
+  async deleteSchedule(scheduleId: string): Promise<void> {
+    try {
+      await firstValueFrom(
+        this.httpService.delete(`${this.baseUrl}/api/v1/schedules/${scheduleId}`),
+      );
+    } catch (error) {
+      console.error(`StockInfoClient.deleteSchedule(${scheduleId}) error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 创建更新计划
+   */
+  async createSchedule(scheduleData: {
+    schedule_type: 'cron' | 'interval';
+    schedule_config: {
+      cron?: string;
+      interval?: number;
+    };
+    is_active?: boolean;
+    ticker?: string;
+    name?: string;
+  }): Promise<any> {
+    try {
+      const response: AxiosResponse<StockApiResponse<any>> =
+        await firstValueFrom(
+          this.httpService.post(
+            `${this.baseUrl}/api/v1/schedules`,
+            scheduleData,
+          ),
+        );
+      return response.data.data;
+    } catch (error) {
+      console.error('StockInfoClient.createSchedule error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量更新股票（SSE 流式响应）
+   * 代理后端的 SSE 流，转发给前端
+   */
+  async fetchAllStocksSSE(
+    market?: string,
+    delay?: string,
+    res?: any,
+  ): Promise<void> {
+    if (!res) {
+      throw new Error('Response object is required for SSE');
+    }
+
+    try {
+      // 构建查询参数
+      const queryParams: Record<string, any> = {};
+      if (market) queryParams.market = market;
+      if (delay) queryParams.delay = delay;
+
+      const queryString = new URLSearchParams(queryParams).toString();
+      const url = `${this.baseUrl}/api/v1/stocks/fetch-all${queryString ? `?${queryString}` : ''}`;
+
+      // 使用 axios 获取流式响应
+      const response = await firstValueFrom(
+        this.httpService.post(url, {}, {
+          responseType: 'stream',
+          headers: {
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          },
+        }),
+      );
+
+      // 将后端流转发给前端
+      response.data.pipe(res);
+
+      // 处理流结束
+      response.data.on('end', () => {
+        if (!res.headersSent) {
+          res.end();
+        }
+      });
+
+      // 处理错误
+      response.data.on('error', (error: any) => {
+        console.error('StockInfoClient.fetchAllStocksSSE stream error:', error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            code: 500,
+            message: 'SSE 流传输错误',
+            data: null,
+          });
+        } else {
+          res.end();
+        }
+      });
+    } catch (error) {
+      console.error('StockInfoClient.fetchAllStocksSSE error:', error);
+      // 如果响应头还没有发送，发送错误响应
+      if (!res.headersSent) {
+        res.status(500).json({
+          code: 500,
+          message: '批量更新失败',
+          data: null,
+        });
+      } else {
+        res.end();
+      }
+      throw error;
+    }
+  }
 }

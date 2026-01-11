@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Stock, StocksQueryParams, PaginatedResponse } from '~/api/types'
+import type { PaginatedResponse, Stock, StocksQueryParams } from '~/api/types'
+import { toast } from 'vue-sonner'
 import { useStocksService } from '~/composables/useApi'
 import { handleApiError } from '~/composables/useApiError'
-import { toast } from 'vue-sonner'
 
 const stocksService = useStocksService()
 const router = useRouter()
@@ -12,8 +12,8 @@ const route = useRoute()
 function getQueryFromUrl() {
   const query = route.query
   return {
-    page: query.page ? parseInt(query.page as string) : 1,
-    page_size: query.page_size ? parseInt(query.page_size as string) : 20,
+    page: query.page ? Number.parseInt(query.page as string) : 1,
+    page_size: query.page_size ? Number.parseInt(query.page_size as string) : 20,
     ticker: (query.ticker as string) || '',
     name: (query.name as string) || '',
     market: (query.market as string) || '',
@@ -32,26 +32,27 @@ function updateUrlParams() {
   if (isUpdatingFromUrl) {
     return
   }
-  
+
   const query: Record<string, string> = {}
-  
+
   if (queryParams.value.page && queryParams.value.page > 1) {
     query.page = queryParams.value.page.toString()
   }
   if (queryParams.value.page_size && queryParams.value.page_size !== 20) {
     query.page_size = queryParams.value.page_size.toString()
   }
-  
+
   // 搜索参数
   if (searchQuery.value.trim()) {
     // 判断是 ticker 还是 name
-    if (/^[A-Za-z0-9]+$/.test(searchQuery.value.trim())) {
+    if (/^[A-Z0-9]+$/i.test(searchQuery.value.trim())) {
       query.ticker = searchQuery.value.trim()
-    } else {
+    }
+    else {
       query.name = searchQuery.value.trim()
     }
   }
-  
+
   // 筛选参数
   if (selectedMarket.value && selectedMarket.value !== 'all') {
     query.market = selectedMarket.value
@@ -62,13 +63,13 @@ function updateUrlParams() {
   if (selectedSector.value && selectedSector.value !== 'all') {
     query.sector = selectedSector.value
   }
-  
+
   // 排序参数
   if (sortBy.value) {
     query.sortBy = sortBy.value
     query.sortOrder = sortOrder.value
   }
-  
+
   // 检查当前 URL 参数是否与要设置的参数相同
   const currentQuery = route.query
   const queryString = JSON.stringify(query)
@@ -78,14 +79,14 @@ function updateUrlParams() {
         acc[key] = currentQuery[key]
       }
       return acc
-    }, {} as Record<string, any>)
+    }, {} as Record<string, any>),
   )
-  
+
   // 如果参数相同，不需要更新
   if (queryString === currentQueryString) {
     return
   }
-  
+
   // 使用 replace: true 避免在历史记录中创建新条目
   router.replace({
     query,
@@ -148,9 +149,10 @@ async function loadStocks() {
     // 搜索：如果搜索框有值，尝试按 ticker 或 name 搜索
     if (searchQuery.value.trim()) {
       // 如果搜索内容看起来像股票代码（纯字母或字母+数字），按 ticker 搜索
-      if (/^[A-Za-z0-9]+$/.test(searchQuery.value.trim())) {
+      if (/^[A-Z0-9]+$/i.test(searchQuery.value.trim())) {
         params.ticker = searchQuery.value.trim()
-      } else {
+      }
+      else {
         // 否则按 name 搜索
         params.name = searchQuery.value.trim()
       }
@@ -196,7 +198,8 @@ async function loadStocks() {
 
         if (sortOrder.value === 'asc') {
           return aValue > bValue ? 1 : aValue < bValue ? -1 : 0
-        } else {
+        }
+        else {
           return aValue < bValue ? 1 : aValue > bValue ? -1 : 0
         }
       })
@@ -204,14 +207,16 @@ async function loadStocks() {
 
     // 清空选择
     selectedStocks.value.clear()
-    
+
     // 更新 URL 参数（仅在非 URL 更新时）
     updateUrlParams()
-  } catch (err) {
+  }
+  catch (err) {
     console.error('loadStocks error:', err)
     error.value = '无法加载股票列表'
     handleApiError(err, { defaultMessage: '无法加载股票列表' })
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -233,7 +238,8 @@ function handleSort(column: 'last_updated' | 'market_cap') {
   if (sortBy.value === column) {
     // 切换排序顺序
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  } else {
+  }
+  else {
     // 设置新的排序列
     sortBy.value = column
     sortOrder.value = 'desc'
@@ -263,12 +269,13 @@ function openGotoDialog() {
 }
 
 function handleGotoPage() {
-  const page = parseInt(gotoPageInput.value)
+  const page = Number.parseInt(gotoPageInput.value)
   if (page >= 1 && page <= pagination.value.total_pages) {
     handlePageChange(page)
     showGotoDialog.value = false
     gotoPageInput.value = ''
-  } else {
+  }
+  else {
     toast.error(`请输入 1 到 ${pagination.value.total_pages} 之间的页码`)
   }
 }
@@ -277,7 +284,8 @@ function handleGotoPage() {
 function toggleSelectAll() {
   if (isAllSelected.value) {
     selectedStocks.value.clear()
-  } else {
+  }
+  else {
     stocks.value.forEach(stock => selectedStocks.value.add(stock.ticker))
   }
 }
@@ -285,7 +293,8 @@ function toggleSelectAll() {
 function toggleSelect(ticker: string) {
   if (selectedStocks.value.has(ticker)) {
     selectedStocks.value.delete(ticker)
-  } else {
+  }
+  else {
     selectedStocks.value.add(ticker)
   }
 }
@@ -307,7 +316,8 @@ async function batchUpdate() {
       try {
         await stocksService.updateStock(ticker)
         successCount++
-      } catch (err) {
+      }
+      catch (err) {
         console.error(`Failed to update ${ticker}:`, err)
         failCount++
       }
@@ -316,9 +326,11 @@ async function batchUpdate() {
     toast.success(`批量更新完成：成功 ${successCount}，失败 ${failCount}`)
     selectedStocks.value.clear()
     await loadStocks()
-  } catch (err) {
+  }
+  catch (err) {
     handleApiError(err, { defaultMessage: '批量更新失败' })
-  } finally {
+  }
+  finally {
     batchUpdating.value = false
   }
 }
@@ -343,7 +355,8 @@ async function confirmDelete() {
       try {
         await stocksService.deleteStock(ticker)
         successCount++
-      } catch (err) {
+      }
+      catch (err) {
         console.error(`Failed to delete ${ticker}:`, err)
         failCount++
       }
@@ -353,9 +366,11 @@ async function confirmDelete() {
     selectedStocks.value.clear()
     showDeleteDialog.value = false
     await loadStocks()
-  } catch (err) {
+  }
+  catch (err) {
     handleApiError(err, { defaultMessage: '批量删除失败' })
-  } finally {
+  }
+  finally {
     batchDeleting.value = false
   }
 }
@@ -400,7 +415,8 @@ function formatDate(dateString?: string): string {
       hour: '2-digit',
       minute: '2-digit',
     }).format(date)
-  } catch {
+  }
+  catch {
     return dateString
   }
 }
@@ -421,7 +437,7 @@ function getMarketTypeVariant(marketType?: string): 'default' | 'secondary' | 'd
 // 获取唯一的市场类型列表
 const marketTypes = computed(() => {
   const types = new Set<string>()
-  stocks.value.forEach(stock => {
+  stocks.value.forEach((stock) => {
     if (stock.market_type) {
       types.add(stock.market_type)
     }
@@ -432,7 +448,7 @@ const marketTypes = computed(() => {
 // 获取唯一的行业列表
 const sectors = computed(() => {
   const sectorSet = new Set<string>()
-  stocks.value.forEach(stock => {
+  stocks.value.forEach((stock) => {
     if (stock.sector) {
       sectorSet.add(stock.sector)
     }
@@ -449,30 +465,30 @@ watch(() => route.query, (newQuery, oldQuery) => {
   if (!isInitialized.value) {
     return
   }
-  
+
   // 如果 query 没有变化，跳过
   if (JSON.stringify(newQuery) === JSON.stringify(oldQuery)) {
     return
   }
-  
+
   isUpdatingFromUrl = true
-  
+
   const urlParams = getQueryFromUrl()
-  
+
   // 更新查询参数
   queryParams.value.page = urlParams.page
   queryParams.value.page_size = urlParams.page_size
-  
+
   // 更新搜索和筛选
   searchQuery.value = urlParams.ticker || urlParams.name || ''
   selectedMarket.value = urlParams.market || ''
   selectedMarketType.value = urlParams.market_type || ''
   selectedSector.value = urlParams.sector || ''
-  
+
   // 更新排序
   sortBy.value = urlParams.sortBy
   sortOrder.value = urlParams.sortOrder
-  
+
   // 重新加载数据（不更新 URL，因为已经在 URL 中）
   loadStocks().finally(() => {
     isUpdatingFromUrl = false
@@ -508,7 +524,7 @@ onMounted(() => {
         >
           <Icon
             :name="batchUpdating ? 'lucide:loader-2' : 'lucide:refresh-cw'"
-            :class="['h-4 w-4 mr-2', batchUpdating && 'animate-spin']"
+            class="h-4 w-4 mr-2" :class="[batchUpdating && 'animate-spin']"
           />
           批量更新 ({{ selectedStocks.size }})
         </Button>
@@ -603,9 +619,15 @@ onMounted(() => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="20">
+                  20
+                </SelectItem>
+                <SelectItem value="50">
+                  50
+                </SelectItem>
+                <SelectItem value="100">
+                  100
+                </SelectItem>
               </SelectContent>
             </Select>
             <span class="text-sm text-muted-foreground">
@@ -662,13 +684,17 @@ onMounted(() => {
         <!-- 加载状态 -->
         <div v-if="loading" class="p-8 text-center">
           <Spinner class="mx-auto mb-4" />
-          <p class="text-muted-foreground">加载中...</p>
+          <p class="text-muted-foreground">
+            加载中...
+          </p>
         </div>
 
         <!-- 错误状态 -->
         <div v-else-if="error" class="p-8 text-center">
           <Icon name="lucide:alert-circle" class="h-12 w-12 mx-auto mb-4 text-destructive" />
-          <p class="text-destructive mb-4">{{ error }}</p>
+          <p class="text-destructive mb-4">
+            {{ error }}
+          </p>
           <Button variant="outline" @click="loadStocks">
             <Icon name="lucide:refresh-cw" class="h-4 w-4 mr-2" />
             重试
@@ -678,7 +704,9 @@ onMounted(() => {
         <!-- 空状态 -->
         <div v-else-if="stocks.length === 0" class="p-8 text-center">
           <Icon name="lucide:inbox" class="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <p class="text-muted-foreground mb-4">暂无股票数据</p>
+          <p class="text-muted-foreground mb-4">
+            暂无股票数据
+          </p>
           <Button variant="outline" @click="loadStocks">
             <Icon name="lucide:refresh-cw" class="h-4 w-4 mr-2" />
             刷新
@@ -721,7 +749,9 @@ onMounted(() => {
               </TableHead>
               <TableHead>价格</TableHead>
               <TableHead>最后更新</TableHead>
-              <TableHead class="text-right">操作</TableHead>
+              <TableHead class="text-right">
+                操作
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -786,9 +816,15 @@ onMounted(() => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="20">20</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
+              <SelectItem value="20">
+                20
+              </SelectItem>
+              <SelectItem value="50">
+                50
+              </SelectItem>
+              <SelectItem value="100">
+                100
+              </SelectItem>
             </SelectContent>
           </Select>
           <span class="text-sm text-muted-foreground">

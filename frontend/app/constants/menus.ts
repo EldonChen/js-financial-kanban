@@ -46,6 +46,11 @@ export const navMenu: NavMenu[] = [
             icon: 'i-lucide-circle',
             link: '/stocks/list',
           },
+          {
+            title: 'Manage',
+            icon: 'i-lucide-circle',
+            link: '/stocks/manage',
+          },
         ],
       },
       {

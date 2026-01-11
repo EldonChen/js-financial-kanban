@@ -13,20 +13,20 @@ export interface ApiAdapter {
   /**
    * GET 请求
    */
-  get<T = any>(url: string, config?: RequestConfig): Promise<ApiResponse<T>>
+  get: <T = any>(url: string, config?: RequestConfig) => Promise<ApiResponse<T>>
 
   /**
    * POST 请求
    */
-  post<T = any>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>>
+  post: <T = any>(url: string, data?: any, config?: RequestConfig) => Promise<ApiResponse<T>>
 
   /**
    * PUT 请求
    */
-  put<T = any>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>>
+  put: <T = any>(url: string, data?: any, config?: RequestConfig) => Promise<ApiResponse<T>>
 
   /**
    * DELETE 请求
    */
-  delete<T = any>(url: string, config?: RequestConfig): Promise<ApiResponse<T>>
+  delete: <T = any>(url: string, config?: RequestConfig) => Promise<ApiResponse<T>>
 }

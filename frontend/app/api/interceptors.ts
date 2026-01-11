@@ -3,8 +3,8 @@
  * 提供常用的请求/响应拦截器
  */
 
-import type { RequestInterceptor, ResponseInterceptor, ErrorInterceptor } from './client'
-import type { RequestConfig, ApiResponse } from './types'
+import type { ErrorInterceptor, RequestInterceptor, ResponseInterceptor } from './client'
+import type { ApiResponse, RequestConfig } from './types'
 
 /**
  * 日志拦截器 - 记录请求和响应

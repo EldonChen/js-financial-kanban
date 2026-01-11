@@ -3,9 +3,9 @@
  * 通过 BFF 层调用股票信息服务
  */
 
+import type { PaginatedResponse, Stock, StocksQueryParams } from '../types'
 import { BffAdapter } from '../adapters/bff'
 import { ApiClient } from '../client'
-import type { Stock, StocksQueryParams, PaginatedResponse } from '../types'
 
 export class StocksService {
   private client: ApiClient
@@ -23,13 +23,20 @@ export class StocksService {
     params?: StocksQueryParams,
   ): Promise<PaginatedResponse<Stock>> {
     const queryParams = new URLSearchParams()
-    if (params?.ticker) queryParams.append('ticker', params.ticker)
-    if (params?.name) queryParams.append('name', params.name)
-    if (params?.market) queryParams.append('market', params.market)
-    if (params?.market_type) queryParams.append('market_type', params.market_type)
-    if (params?.sector) queryParams.append('sector', params.sector)
-    if (params?.page) queryParams.append('page', params.page.toString())
-    if (params?.page_size) queryParams.append('page_size', params.page_size.toString())
+    if (params?.ticker)
+      queryParams.append('ticker', params.ticker)
+    if (params?.name)
+      queryParams.append('name', params.name)
+    if (params?.market)
+      queryParams.append('market', params.market)
+    if (params?.market_type)
+      queryParams.append('market_type', params.market_type)
+    if (params?.sector)
+      queryParams.append('sector', params.sector)
+    if (params?.page)
+      queryParams.append('page', params.page.toString())
+    if (params?.page_size)
+      queryParams.append('page_size', params.page_size.toString())
 
     const queryString = queryParams.toString()
     const url = queryString ? `${this.basePath}?${queryString}` : this.basePath
