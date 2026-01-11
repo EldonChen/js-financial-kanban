@@ -27,6 +27,24 @@ export interface StockApiResponse<T> {
   data: T;
 }
 
+export interface StocksQueryParams {
+  ticker?: string;
+  name?: string;
+  market?: string;
+  marketType?: string;
+  sector?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedStocksResponse {
+  items: Stock[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 @Injectable()
 export class StockInfoClient {
   private readonly baseUrl: string;
@@ -37,9 +55,45 @@ export class StockInfoClient {
   }
 
   /**
-   * 获取所有股票
+   * 获取股票列表（支持分页和筛选）
    */
-  async getStocks(): Promise<Stock[]> {
+  async getStocks(
+    params?: StocksQueryParams,
+  ): Promise<PaginatedStocksResponse> {
+    try {
+      const queryParams: Record<string, any> = {};
+      if (params?.ticker) queryParams.ticker = params.ticker;
+      if (params?.name) queryParams.name = params.name;
+      if (params?.market) queryParams.market = params.market;
+      if (params?.marketType) queryParams.market_type = params.marketType;
+      if (params?.sector) queryParams.sector = params.sector;
+      if (params?.page) queryParams.page = params.page;
+      if (params?.pageSize) queryParams.page_size = params.pageSize;
+
+      const response: AxiosResponse<
+        StockApiResponse<PaginatedStocksResponse>
+      > = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/api/v1/stocks`, {
+          params: queryParams,
+        }),
+      );
+      return response.data.data || {
+        items: [],
+        total: 0,
+        page: params?.page || 1,
+        page_size: params?.pageSize || 20,
+        total_pages: 0,
+      };
+    } catch (error) {
+      console.error('StockInfoClient.getStocks error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取所有股票（无分页，向后兼容）
+   */
+  async getAllStocks(): Promise<Stock[]> {
     try {
       const response: AxiosResponse<StockApiResponse<Stock[]>> =
         await firstValueFrom(
@@ -47,7 +101,7 @@ export class StockInfoClient {
         );
       return response.data.data || [];
     } catch (error) {
-      console.error('StockInfoClient.getStocks error:', error);
+      console.error('StockInfoClient.getAllStocks error:', error);
       throw error;
     }
   }

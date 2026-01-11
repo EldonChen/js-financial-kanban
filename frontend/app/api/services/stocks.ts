@@ -5,7 +5,7 @@
 
 import { BffAdapter } from '../adapters/bff'
 import { ApiClient } from '../client'
-import type { Stock } from '../types'
+import type { Stock, StocksQueryParams, PaginatedResponse } from '../types'
 
 export class StocksService {
   private client: ApiClient
@@ -17,11 +17,31 @@ export class StocksService {
   }
 
   /**
-   * 获取所有股票
+   * 获取股票列表（支持分页和筛选）
    */
-  async getStocks(): Promise<Stock[]> {
-    const response = await this.client.get<Stock[]>(this.basePath)
-    return response.data || []
+  async getStocks(
+    params?: StocksQueryParams,
+  ): Promise<PaginatedResponse<Stock>> {
+    const queryParams = new URLSearchParams()
+    if (params?.ticker) queryParams.append('ticker', params.ticker)
+    if (params?.name) queryParams.append('name', params.name)
+    if (params?.market) queryParams.append('market', params.market)
+    if (params?.market_type) queryParams.append('market_type', params.market_type)
+    if (params?.sector) queryParams.append('sector', params.sector)
+    if (params?.page) queryParams.append('page', params.page.toString())
+    if (params?.page_size) queryParams.append('page_size', params.page_size.toString())
+
+    const queryString = queryParams.toString()
+    const url = queryString ? `${this.basePath}?${queryString}` : this.basePath
+
+    const response = await this.client.get<PaginatedResponse<Stock>>(url)
+    return response.data || {
+      items: [],
+      total: 0,
+      page: params?.page || 1,
+      page_size: params?.page_size || 20,
+      total_pages: 0,
+    }
   }
 
   /**

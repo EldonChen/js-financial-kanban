@@ -4,6 +4,7 @@ import {
   Post,
   Delete,
   Param,
+  Query,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -14,8 +15,26 @@ export class StocksController {
   constructor(private readonly stocksService: StocksService) {}
 
   @Get()
-  async getStocks() {
-    return this.stocksService.getAllStocks();
+  async getStocks(
+    @Query('ticker') ticker?: string,
+    @Query('name') name?: string,
+    @Query('market') market?: string,
+    @Query('market_type') marketType?: string,
+    @Query('sector') sector?: string,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 20;
+    return this.stocksService.getStocks({
+      ticker,
+      name,
+      market,
+      marketType,
+      sector,
+      page: pageNum,
+      pageSize: pageSizeNum,
+    });
   }
 
   @Get(':ticker')

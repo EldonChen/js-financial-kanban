@@ -33,7 +33,7 @@ export class DashboardService {
         this.pythonClient.getItems(),
         this.nodeClient.getItems(),
         this.rustClient.getItems(),
-        this.stockInfoClient.getStocks(),
+        this.stockInfoClient.getAllStocks(),
       ] as const);
 
     const pythonItemsList = pythonItems || [];

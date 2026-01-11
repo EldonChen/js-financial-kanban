@@ -1,13 +1,47 @@
 import { Injectable } from '@nestjs/common';
 import { StockInfoClient, Stock } from '../../clients/stock-info.client';
 
+export interface StocksQueryParams {
+  ticker?: string;
+  name?: string;
+  market?: string;
+  marketType?: string;
+  sector?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedStocksResponse {
+  items: Stock[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 @Injectable()
 export class StocksService {
   constructor(private readonly stockInfoClient: StockInfoClient) {}
 
+  async getStocks(params: StocksQueryParams): Promise<PaginatedStocksResponse> {
+    try {
+      return await this.stockInfoClient.getStocks(params);
+    } catch (error) {
+      console.error('StocksService.getStocks error:', error);
+      // 返回空分页响应而不是抛出错误，允许部分失败
+      return {
+        items: [],
+        total: 0,
+        page: params.page || 1,
+        page_size: params.pageSize || 20,
+        total_pages: 0,
+      };
+    }
+  }
+
   async getAllStocks(): Promise<Stock[]> {
     try {
-      return await this.stockInfoClient.getStocks();
+      return await this.stockInfoClient.getAllStocks();
     } catch (error) {
       console.error('StocksService.getAllStocks error:', error);
       // 返回空数组而不是抛出错误，允许部分失败
