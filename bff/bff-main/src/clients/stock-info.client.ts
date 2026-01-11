@@ -92,14 +92,29 @@ export class StockInfoClient {
 
   /**
    * 获取所有股票（无分页，向后兼容）
+   * 注意：股票信息服务返回的是分页格式，需要提取 items 数组
    */
   async getAllStocks(): Promise<Stock[]> {
     try {
-      const response: AxiosResponse<StockApiResponse<Stock[]>> =
+      const response: AxiosResponse<StockApiResponse<PaginatedStocksResponse | Stock[]>> =
         await firstValueFrom(
           this.httpService.get(`${this.baseUrl}/api/v1/stocks`),
         );
-      return response.data.data || [];
+      
+      const data = response.data.data;
+      
+      // 如果返回的是分页格式（包含 items 字段），提取 items 数组
+      if (data && typeof data === 'object' && 'items' in data && Array.isArray((data as PaginatedStocksResponse).items)) {
+        return (data as PaginatedStocksResponse).items;
+      }
+      
+      // 如果返回的是数组，直接返回
+      if (Array.isArray(data)) {
+        return data;
+      }
+      
+      // 否则返回空数组
+      return [];
     } catch (error) {
       console.error('StockInfoClient.getAllStocks error:', error);
       throw error;
@@ -189,6 +204,35 @@ export class StockInfoClient {
       );
     } catch (error) {
       console.error(`StockInfoClient.deleteStock(${ticker}) error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取数据源状态信息
+   */
+  async getProviderStatus(): Promise<{
+    total_providers: number;
+    providers: Record<string, any>;
+    market_coverage: Record<string, string[]>;
+  }> {
+    try {
+      const response: AxiosResponse<
+        StockApiResponse<{
+          total_providers: number;
+          providers: Record<string, any>;
+          market_coverage: Record<string, string[]>;
+        }>
+      > = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/api/v1/providers/status`),
+      );
+      return response.data.data || {
+        total_providers: 0,
+        providers: {},
+        market_coverage: {},
+      };
+    } catch (error) {
+      console.error('StockInfoClient.getProviderStatus error:', error);
       throw error;
     }
   }

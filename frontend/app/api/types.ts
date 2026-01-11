@@ -143,3 +143,40 @@ export interface PaginatedResponse<T> {
   page_size: number
   total_pages: number
 }
+
+/**
+ * Dashboard 统计数据
+ */
+export interface DashboardStats {
+  totalItems: number
+  pythonItems: number
+  nodeItems: number
+  rustItems: number
+  totalStocks: number
+  aStockCount: number
+  usStockCount: number
+  hkStockCount: number
+  providerCount: number
+  lastFullUpdateTime?: string
+}
+
+/**
+ * Dashboard 最近 Item（统一格式）
+ */
+export interface RecentItem {
+  id: string
+  name: string
+  description?: string
+  price?: number
+  source: 'python' | 'node' | 'rust'
+  updatedAt?: string
+}
+
+/**
+ * Dashboard 数据
+ */
+export interface DashboardData {
+  stats: DashboardStats
+  recentItems: RecentItem[]
+  recentStocks: Stock[]
+}

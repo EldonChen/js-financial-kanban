@@ -31,6 +31,24 @@ export const navMenu: NavMenu[] = [
         new: true,
       },
       {
+        title: 'Stocks',
+        icon: 'i-lucide-trending-up',
+        link: '/stocks',
+        new: true,
+        children: [
+          {
+            title: 'Dashboard',
+            icon: 'i-lucide-circle',
+            link: '/stocks',
+          },
+          {
+            title: 'Stock List',
+            icon: 'i-lucide-circle',
+            link: '/stocks/list',
+          },
+        ],
+      },
+      {
         title: 'Playground',
         icon: 'i-lucide-code-2',
         link: '/playground',

@@ -12,6 +12,11 @@ export interface DashboardData {
     nodeItems: number;
     rustItems: number;
     totalStocks: number;
+    aStockCount: number;
+    usStockCount: number;
+    hkStockCount: number;
+    providerCount: number;
+    lastFullUpdateTime?: string;
   };
   recentItems: any[];
   recentStocks: any[];
@@ -27,48 +32,37 @@ export class DashboardService {
   ) {}
 
   async getDashboardData(): Promise<DashboardData> {
-    // 并行获取所有数据，允许部分失败
-    const [pythonItems, nodeItems, rustItems, stocks] =
-      await allSettledWithNull([
-        this.pythonClient.getItems(),
-        this.nodeClient.getItems(),
-        this.rustClient.getItems(),
-        this.stockInfoClient.getAllStocks(),
-      ] as const);
+    // 并行获取股票数据和数据源状态
+    const [stocksResult, providerStatus] = await Promise.all([
+      this.stockInfoClient
+        .getStocks({ page: 1, pageSize: 100 })
+        .catch(() => null),
+      this.stockInfoClient.getProviderStatus().catch(() => null),
+    ]);
 
-    const pythonItemsList = pythonItems || [];
-    const nodeItemsList = nodeItems || [];
-    const rustItemsList = rustItems || [];
-    const stocksList = stocks || [];
+    const stocksList = stocksResult?.items || [];
+    const totalStocks = stocksResult?.total || 0;
 
-    // 获取最近的 items（取前 5 个）
-    // 统一处理不同来源的 items，提取更新时间字段
-    const allItems = [
-      ...pythonItemsList.map((item) => ({
-        ...item,
-        source: 'python' as const,
-        updatedAt: item.updated_at,
-      })),
-      ...nodeItemsList.map((item) => ({
-        ...item,
-        source: 'node' as const,
-        updatedAt: item.updatedAt,
-      })),
-      ...rustItemsList.map((item) => ({
-        ...item,
-        source: 'rust' as const,
-        updatedAt: item.updated_at,
-      })),
-    ];
-    const recentItems = allItems
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt || 0).getTime() -
-          new Date(a.updatedAt || 0).getTime(),
-      )
-      .slice(0, 5);
+    // 统计各市场类型的股票数量
+    // 获取所有股票数据以进行统计（需要获取足够的数据）
+    const [aStockResult, usStockResult, hkStockResult] = await Promise.all([
+      this.stockInfoClient
+        .getStocks({ marketType: 'A股', page: 1, pageSize: 1 })
+        .catch(() => null),
+      this.stockInfoClient
+        .getStocks({ marketType: '美股', page: 1, pageSize: 1 })
+        .catch(() => null),
+      this.stockInfoClient
+        .getStocks({ marketType: '港股', page: 1, pageSize: 1 })
+        .catch(() => null),
+    ]);
 
-    // 获取最近的 stocks（取前 5 个）
+    const aStockCount = aStockResult?.total || 0;
+    const usStockCount = usStockResult?.total || 0;
+    const hkStockCount = hkStockResult?.total || 0;
+    const providerCount = providerStatus?.total_providers || 0;
+
+    // 获取最近的 stocks（按更新时间排序，取前 5 个）
     const recentStocks = stocksList
       .sort(
         (a, b) =>
@@ -77,18 +71,39 @@ export class DashboardService {
       )
       .slice(0, 5);
 
+    // 计算上次全量更新时间（取所有股票中最早的 created_at）
+    // 全量更新时，所有股票会在同一时间创建，所以使用最早的 created_at 作为全量更新时间
+    // 为了性能考虑，我们使用已获取的 stocksList 来计算（如果数据量很大，可能需要单独查询）
+    let lastFullUpdateTime: string | undefined;
+    if (stocksList.length > 0) {
+      // 从已获取的股票列表中查找最早的 created_at
+      const createdTimes = stocksList
+        .map((s) => s.created_at)
+        .filter((t) => t)
+        .map((t) => new Date(t).getTime())
+        .filter((t) => !isNaN(t));
+      
+      if (createdTimes.length > 0) {
+        // 取最早的时间（全量更新时所有股票会在同一时间创建）
+        const earliestTime = Math.min(...createdTimes);
+        lastFullUpdateTime = new Date(earliestTime).toISOString();
+      }
+    }
+
     return {
       stats: {
-        totalItems:
-          pythonItemsList.length +
-          nodeItemsList.length +
-          rustItemsList.length,
-        pythonItems: pythonItemsList.length,
-        nodeItems: nodeItemsList.length,
-        rustItems: rustItemsList.length,
-        totalStocks: stocksList.length,
+        totalItems: 0,
+        pythonItems: 0,
+        nodeItems: 0,
+        rustItems: 0,
+        totalStocks,
+        aStockCount,
+        usStockCount,
+        hkStockCount,
+        providerCount,
+        lastFullUpdateTime,
       },
-      recentItems,
+      recentItems: [],
       recentStocks,
     };
   }

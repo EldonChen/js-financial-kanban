@@ -44,11 +44,11 @@ services:
     networks:
       - financial-kanban-network
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 30s
 
   # Python 股票信息服务
   py-stock-info-service:
@@ -105,11 +105,11 @@ services:
     networks:
       - financial-kanban-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 30s
 
   # Rust Axum 服务
   rust-service:
@@ -175,11 +175,11 @@ services:
     networks:
       - financial-kanban-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4000/api/bff/v1/views/dashboard"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/bff/v1/health"]
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 30s
 
   # Nuxt.js 前端
   frontend:

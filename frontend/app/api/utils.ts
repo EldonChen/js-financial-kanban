@@ -2,7 +2,7 @@
  * API 工具函数
  */
 
-import type { ApiError } from './types'
+import { ApiError } from './types'
 
 /**
  * 判断是否为 API 错误

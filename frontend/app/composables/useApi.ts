@@ -7,6 +7,7 @@ import { createNodeService, type NodeService } from '~/api/services/node'
 import { createPythonService, type PythonService } from '~/api/services/python'
 import { createRustService, type RustService } from '~/api/services/rust'
 import { createStocksService, type StocksService } from '~/api/services/stocks'
+import { createDashboardService, type DashboardService } from '~/api/services/dashboard'
 
 /**
  * 使用 Node.js 服务
@@ -38,4 +39,12 @@ export function useRustService(): RustService {
 export function useStocksService(): StocksService {
   const config = useRuntimeConfig()
   return createStocksService(config.public.bffApiUrl)
+}
+
+/**
+ * 使用 Dashboard 服务
+ */
+export function useDashboardService(): DashboardService {
+  const config = useRuntimeConfig()
+  return createDashboardService(config.public.bffApiUrl)
 }
