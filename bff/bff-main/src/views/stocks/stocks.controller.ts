@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param } from '@nestjs/common';
 import { StocksService } from './stocks.service';
 
 @Controller('views/stocks')
@@ -13,5 +13,15 @@ export class StocksController {
   @Get(':ticker')
   async getStock(@Param('ticker') ticker: string) {
     return this.stocksService.getStock(ticker);
+  }
+
+  @Post(':ticker/update')
+  async updateStock(@Param('ticker') ticker: string) {
+    return this.stocksService.updateStock(ticker);
+  }
+
+  @Delete(':ticker')
+  async deleteStock(@Param('ticker') ticker: string) {
+    return this.stocksService.deleteStock(ticker);
   }
 }

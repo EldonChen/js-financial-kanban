@@ -6,6 +6,7 @@
 import { createNodeService, type NodeService } from '~/api/services/node'
 import { createPythonService, type PythonService } from '~/api/services/python'
 import { createRustService, type RustService } from '~/api/services/rust'
+import { createStocksService, type StocksService } from '~/api/services/stocks'
 
 /**
  * 使用 Node.js 服务
@@ -29,4 +30,12 @@ export function usePythonService(): PythonService {
 export function useRustService(): RustService {
   const config = useRuntimeConfig()
   return createRustService(config.public.rustApiUrl)
+}
+
+/**
+ * 使用 Stocks 服务
+ */
+export function useStocksService(): StocksService {
+  const config = useRuntimeConfig()
+  return createStocksService(config.public.bffApiUrl)
 }

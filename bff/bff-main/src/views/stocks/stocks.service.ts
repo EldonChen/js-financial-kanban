@@ -23,4 +23,22 @@ export class StocksService {
       return null;
     }
   }
+
+  async updateStock(ticker: string): Promise<Stock> {
+    try {
+      return await this.stockInfoClient.upsertStock(ticker);
+    } catch (error) {
+      console.error(`StocksService.updateStock(${ticker}) error:`, error);
+      throw error;
+    }
+  }
+
+  async deleteStock(ticker: string): Promise<void> {
+    try {
+      await this.stockInfoClient.deleteStock(ticker);
+    } catch (error) {
+      console.error(`StocksService.deleteStock(${ticker}) error:`, error);
+      throw error;
+    }
+  }
 }

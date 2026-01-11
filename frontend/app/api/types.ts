@@ -98,3 +98,18 @@ export interface RustItem {
   created_at?: string
   updated_at?: string
 }
+
+/**
+ * Stock 数据模型
+ */
+export interface Stock {
+  ticker: string
+  name?: string
+  sector?: string
+  industry?: string
+  market_cap?: number
+  price?: number
+  volume?: number
+  created_at?: string
+  last_updated?: string
+}
