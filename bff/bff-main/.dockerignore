@@ -1,24 +1,33 @@
 # 构建产物
-dist
-node_modules
+dist/
+build/
+node_modules/
+.npm/
+.yarn/
+.pnp.*
+.bun/
+
+# 测试
+coverage/
+.nyc_output/
+*.test.ts
+*.spec.ts
+*.test.js
+*.spec.js
+tests/
+test/
 
 # 日志
-logs
+logs/
 *.log
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
-yarn-error.log*
-
-# 测试
-coverage
-.nyc_output
-*.test.ts
-*.spec.ts
+bun-debug.log*
 
 # 开发工具
-.vscode
-.idea
+.vscode/
+.idea/
 *.swp
 *.swo
 *~
@@ -27,15 +36,30 @@ coverage
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # Git
-.git
+.git/
 .gitignore
+.gitattributes
 
 # 文档
 README.md
 *.md
+docs/
+changelog.md
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
 
 # 其他
 .DS_Store
 Thumbs.db
+*.bak
+*.orig

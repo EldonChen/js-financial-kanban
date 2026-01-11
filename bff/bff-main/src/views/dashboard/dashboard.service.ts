@@ -34,7 +34,7 @@ export class DashboardService {
         this.nodeClient.getItems(),
         this.rustClient.getItems(),
         this.stockInfoClient.getStocks(),
-      ]);
+      ] as const);
 
     const pythonItemsList = pythonItems || [];
     const nodeItemsList = nodeItems || [];
@@ -42,16 +42,29 @@ export class DashboardService {
     const stocksList = stocks || [];
 
     // 获取最近的 items（取前 5 个）
+    // 统一处理不同来源的 items，提取更新时间字段
     const allItems = [
-      ...pythonItemsList.map((item) => ({ ...item, source: 'python' })),
-      ...nodeItemsList.map((item) => ({ ...item, source: 'node' })),
-      ...rustItemsList.map((item) => ({ ...item, source: 'rust' })),
+      ...pythonItemsList.map((item) => ({
+        ...item,
+        source: 'python' as const,
+        updatedAt: item.updated_at,
+      })),
+      ...nodeItemsList.map((item) => ({
+        ...item,
+        source: 'node' as const,
+        updatedAt: item.updatedAt,
+      })),
+      ...rustItemsList.map((item) => ({
+        ...item,
+        source: 'rust' as const,
+        updatedAt: item.updated_at,
+      })),
     ];
     const recentItems = allItems
       .sort(
         (a, b) =>
-          new Date(b.updated_at || b.updatedAt || 0).getTime() -
-          new Date(a.updated_at || a.updatedAt || 0).getTime(),
+          new Date(b.updatedAt || 0).getTime() -
+          new Date(a.updatedAt || 0).getTime(),
       )
       .slice(0, 5);
 

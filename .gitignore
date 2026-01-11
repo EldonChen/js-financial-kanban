@@ -82,7 +82,6 @@ venv/
 ENV/
 env/
 .uv/
-uv.lock
 .pytest_cache/
 .coverage
 htmlcov/
@@ -97,7 +96,6 @@ dmypy.json
 # Rust
 target/
 **/*.rs.bk
-Cargo.lock
 *.pdb
 
 # 环境变量

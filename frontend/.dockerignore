@@ -1,11 +1,13 @@
-# Node.js 构建产物
+# 构建产物
 dist/
 build/
+.output/
+.nuxt/
+.next/
 node_modules/
 .npm/
 .yarn/
 .pnp.*
-.bun/
 
 # 测试
 coverage/
@@ -14,31 +16,31 @@ coverage/
 *.spec.ts
 *.test.js
 *.spec.js
-tests/
-test/
 
 # 文档
 *.md
 README.md
 docs/
-changelog.md
 
 # 环境变量
 .env
 .env.local
 .env.*.local
-!.env.example
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # Git
 .git/
 .gitignore
 .gitattributes
+
+# CI/CD
+.github/
 
 # 日志
 *.log
@@ -47,23 +49,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-bun-debug.log*
 
 # 临时文件
 tmp/
 temp/
 *.tmp
 
-# Docker
-Dockerfile
-.dockerignore
-docker-compose.yml
-
-# CI/CD
-.github/
-.gitlab-ci.yml
-
 # 其他
 .DS_Store
-*.bak
-*.orig
+Thumbs.db
+.cursorrules
+renovate.json
+.release-it.json

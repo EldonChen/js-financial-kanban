@@ -1,6 +1,6 @@
 # Rust 构建产物
 target/
-Cargo.lock
+# 注意：Cargo.lock 需要包含在构建中，所以不忽略
 
 # 测试
 tests/
@@ -10,10 +10,13 @@ tests/
 # 文档
 *.md
 README.md
+docs/
 
 # 环境变量
 .env
 .env.local
+.env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -21,10 +24,30 @@ README.md
 *.swp
 *.swo
 
+# Git
+.git/
+.gitignore
+.gitattributes
+
 # 日志
 *.log
+logs/
 
 # 临时文件
 tmp/
 temp/
 *.tmp
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# 其他
+.DS_Store
+*.bak
+*.orig

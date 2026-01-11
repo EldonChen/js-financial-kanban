@@ -26,7 +26,7 @@ export class ItemsService {
       this.pythonClient.getItems(),
       this.nodeClient.getItems(),
       this.rustClient.getItems(),
-    ]);
+    ] as const);
 
     // 转换数据格式
     const unifiedItems: UnifiedItem[] = [];

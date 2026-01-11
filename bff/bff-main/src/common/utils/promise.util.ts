@@ -4,16 +4,16 @@
 
 /**
  * 并行执行多个 Promise，允许部分失败
- * @param promises Promise 数组
+ * @param promises Promise 数组（支持不同类型）
  * @returns 结果数组，失败的项为 null
  */
-export async function allSettledWithNull<T>(
-  promises: Promise<T>[],
-): Promise<(T | null)[]> {
+export async function allSettledWithNull<T extends readonly unknown[]>(
+  promises: { [K in keyof T]: Promise<T[K]> },
+): Promise<{ [K in keyof T]: T[K] | null }> {
   const results = await Promise.allSettled(promises);
   return results.map((result) =>
     result.status === 'fulfilled' ? result.value : null,
-  );
+  ) as { [K in keyof T]: T[K] | null };
 }
 
 /**
