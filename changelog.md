@@ -1968,3 +1968,202 @@ eventSource.onmessage = (event) => {
 **更新时间**：2025-01-12  
 **项目版本**：0.2.0  
 **阶段**：Phase 2 前端页面开发已完成，Phase 3 规划已完成，进入数据支持模块开发阶段
+
+## 变更记录 - 数据支持模块前端基础实现（部分）
+
+### 主要变更点
+- 实现了历史数据和技术指标功能的前端基础
+- 功能集成到股票详情页，采用 Tab 切换方式
+- 提供 Mock 数据支持，可独立开发和测试
+- 暂不实现数据质量检查和数据同步管理功能
+
+### 详细变更说明
+
+#### 功能实现范围
+
+本次仅实现了数据支持模块的部分功能，重点在于历史数据查询和技术指标计算的基础能力：
+
+**已实现的功能**（集成到股票详情页）：
+1. **历史K线数据查询**：
+   - 查询历史K线数据（按时间周期、日期范围）
+   - K线图可视化（使用 ECharts）
+   - 时间周期切换（分时、日K、周K、月K 等）
+   - 数据更新功能（SSE 进度追踪）
+
+2. **技术指标计算与展示**：
+   - 多指标选择和切换
+   - 指标叠加显示（在 K线图上）
+   - 支持的指标列表展示
+   - 自动计算缺失的指标数据
+
+**未实现的功能**（保留为后续任务）：
+- 数据质量检查和修复
+- 数据同步任务管理
+- 批量历史数据管理
+
+#### 技术实现
+
+1. **API 服务封装**：
+   - `frontend/app/api/services/historical-data.ts` - 历史数据服务
+   - `frontend/app/api/services/indicators.ts` - 技术指标服务
+   - 支持 Mock 模式（默认启用，直到 BFF 层实现完成）
+
+2. **Composables 封装**：
+   - `frontend/app/composables/useHistoricalData.ts` - 历史数据服务访问
+   - `frontend/app/composables/useIndicators.ts` - 技术指标服务访问
+   - `frontend/app/composables/useStockHistory.ts` - 统一管理历史数据和指标逻辑
+
+3. **组件实现**：
+   - `frontend/app/components/stocks/KlineChart.vue` - K线图组件
+   - `frontend/app/components/stocks/IndicatorChart.vue` - 指标图表组件（支持多指标叠加）
+   - `frontend/app/components/stocks/StockHistoryTab.vue` - 历史数据 Tab 组件
+   - `frontend/app/components/stocks/PeriodSelector.vue` - 时间周期选择器
+   - `frontend/app/components/stocks/IndicatorSelector.vue` - 技术指标选择器
+   - `frontend/app/components/common/SSEProgress.vue` - SSE 进度展示组件
+
+4. **Mock 数据支持**：
+   - `frontend/app/api/mock/data-support.ts` - Mock 数据生成器
+   - `frontend/app/api/adapters/mock-bff.ts` - Mock BFF 适配器
+   - 支持历史数据和技术指标的 Mock 数据
+   - 支持 SSE 进度模拟
+
+5. **类型定义扩展**（`frontend/app/api/types.ts`）：
+   - `HistoricalData` - 历史K线数据
+   - `HistoricalDataQueryParams` - 历史数据查询参数
+   - `HistoricalDataStatistics` - 历史数据统计
+   - `IndicatorData` - 技术指标数据
+   - `IndicatorQueryParams` - 指标查询参数
+   - `SupportedIndicator` - 支持的指标类型
+   - `SSEProgress` - SSE 进度信息
+
+6. **页面集成**：
+   - 股票详情页（`/stocks/[ticker]`）新增"历史数据" Tab
+   - 使用 Tabs 组件组织内容（基本信息 / 历史数据）
+   - 历史数据 Tab 包含：K线图、指标叠加、周期切换、数据更新
+
+#### 架构设计
+
+**集成方式**：
+- 采用 Tab 集成而非独立页面，减少导航复杂度
+- 历史数据和技术指标功能集中在股票详情页
+- 使用 Composable 模式统一管理状态和逻辑
+- 组件化设计，易于复用和维护
+
+**Mock 策略**：
+- 仅 Mock 数据支持模块的新接口（historical-data, indicators）
+- 已上线的接口（stocks, dashboard）继续使用真实 BFF
+- 通过环境变量控制 Mock 开关（`NUXT_PUBLIC_USE_DATA_SUPPORT_MOCK`）
+
+**数据流**：
+```
+前端组件 → Composable (useStockHistory) → API Service (HistoricalDataService/IndicatorsService) 
+   → Mock Adapter (开发阶段) / BFF Adapter (生产阶段) → BFF 层 → 后端服务
+```
+
+### 关键代码片段
+
+**股票详情页 Tab 集成**:
+
+```vue
+<Tabs v-model="activeTab">
+  <TabsList class="grid w-full grid-cols-2">
+    <TabsTrigger value="info">基本信息</TabsTrigger>
+    <TabsTrigger value="history">历史数据</TabsTrigger>
+  </TabsList>
+  <TabsContent value="info">
+    <StockInfoTab :stock="stock" />
+  </TabsContent>
+  <TabsContent value="history">
+    <StockHistoryTab :ticker="ticker" />
+  </TabsContent>
+</Tabs>
+```
+
+**统一管理逻辑（useStockHistory）**:
+
+```typescript
+export function useStockHistory(ticker: Ref<string>) {
+  // 历史数据管理
+  const historicalData = ref<HistoricalData[]>([])
+  // 技术指标管理（支持多选）
+  const selectedIndicators = ref<string[]>([])
+  const indicatorDataMap = ref<Record<string, IndicatorData[]>>({})
+  
+  // 加载历史数据
+  async function loadHistoricalData() { ... }
+  // 切换指标（自动加载或计算）
+  async function toggleIndicator(indicatorName: string) { ... }
+  
+  return { historicalData, selectedIndicators, ... }
+}
+```
+
+**多指标叠加图表**:
+
+```vue
+<IndicatorChart
+  :kline-data="historicalData"
+  :indicator-data-map="indicatorDataMap"
+  :selected-indicators="selectedIndicators"
+  :period="period"
+/>
+```
+
+### 技术亮点
+
+1. **组件化设计**：
+   - 图表组件独立封装（KlineChart, IndicatorChart）
+   - 选择器组件独立封装（PeriodSelector, IndicatorSelector）
+   - SSE 进度组件通用化
+
+2. **多指标支持**：
+   - 支持同时选择多个指标
+   - 主图指标（MA、BOLL）叠加在 K线图上
+   - 附图指标（RSI、MACD）单独显示在下方
+
+3. **智能计算**：
+   - 选择指标时自动检查数据是否存在
+   - 如果数据不存在，自动调用计算接口
+   - 计算失败自动回滚，保证用户体验
+
+4. **Mock 数据支持**：
+   - 完整的 Mock 数据生成器
+   - 模拟真实的 SSE 进度更新
+   - 支持独立开发，无需等待后端
+
+### 文档归档
+
+所有数据支持模块的技术方案和技术路线文档已归档到 `docs/archived/` 目录：
+- `archived/技术方案设计-数据支持模块-前端实现.md`
+- `archived/技术方案设计-数据支持模块-BFF层实现.md`
+- `archived/技术方案设计-数据支持模块-后台服务.md`
+- `archived/技术路线-数据支持模块-前端实现.md`
+- `archived/技术路线-数据支持模块-BFF层.md`
+- `archived/技术路线-数据支持模块-服务层.md`
+- `archived/技术调研-数据支持模块.md`
+
+### 注意事项
+
+1. **Mock 模式**：
+   - 默认启用 Mock，前端可独立开发
+   - 环境变量 `NUXT_PUBLIC_USE_DATA_SUPPORT_MOCK=false` 可切换到真实 BFF
+
+2. **后续开发**：
+   - BFF 层需要实现 `historical-data` 和 `indicators` 视图模块
+   - 后端服务需要实现历史数据获取和技术指标计算功能
+   - 数据质量检查和数据同步功能保留为后续任务
+
+3. **已安装依赖**：
+   - `echarts` - 图表库
+   - `vue-echarts` - Vue ECharts 封装
+
+4. **设计决策**：
+   - 采用集成方式而非独立页面，减少导航复杂度
+   - 优先实现核心功能（历史数据、技术指标），延后质量检查和同步管理
+   - 使用 Composable 模式统一管理逻辑，提高代码复用性
+
+---
+
+**更新时间**：2025-01-20  
+**项目版本**：0.3.0  
+**阶段**：Phase 3 数据支持模块（历史数据和技术指标）前端基础实现完成

@@ -180,3 +180,104 @@ export interface DashboardData {
   recentItems: RecentItem[]
   recentStocks: Stock[]
 }
+
+/**
+ * 历史K线数据类型
+ */
+export interface HistoricalData {
+  date: string
+  timestamp: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+  amount?: number
+  adj_close?: number
+  data_source: string
+}
+
+/**
+ * 历史数据查询参数
+ */
+export interface HistoricalDataQueryParams {
+  ticker?: string
+  period?: string
+  start_date?: string
+  end_date?: string
+  limit?: number
+  page?: number
+  page_size?: number
+}
+
+/**
+ * 历史数据统计信息
+ */
+export interface HistoricalDataStatistics {
+  total_count: number
+  start_date: string
+  end_date: string
+  missing_dates: string[]
+  coverage_rate?: number // 覆盖率（百分比）
+}
+
+/**
+ * 技术指标数据类型
+ */
+export interface IndicatorData {
+  date: string
+  timestamp: string
+  value: number
+  params?: {
+    period?: number
+    fast?: number
+    slow?: number
+    [key: string]: any
+  }
+}
+
+/**
+ * 技术指标查询参数
+ */
+export interface IndicatorQueryParams {
+  ticker?: string
+  indicator_name?: string
+  period?: string
+  start_date?: string
+  end_date?: string
+  limit?: number
+  page?: number
+  page_size?: number
+}
+
+/**
+ * 支持的指标类型
+ */
+export interface SupportedIndicator {
+  name: string
+  display_name: string
+  description?: string
+  category: 'trend' | 'momentum' | 'volatility' | 'volume' | 'other'
+  params?: {
+    name: string
+    type: 'number' | 'string'
+    default?: any
+    description?: string
+  }[]
+}
+
+/**
+ * SSE 进度信息
+ */
+export interface SSEProgress {
+  stage: 'init' | 'fetching' | 'saving' | 'calculating' | 'completed' | 'error'
+  message: string
+  progress: number // 进度百分比（0-100）
+  total?: number
+  current?: number
+  success_count?: number
+  failed_count?: number
+  estimated_remaining_time?: number // 预计剩余时间（秒）
+  result?: any
+  error?: string
+}
