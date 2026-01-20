@@ -53,6 +53,34 @@ class StockService:
             return stock_from_dict(stock)
         return None
 
+    async def get_stocks_by_tickers(self, tickers: List[str]) -> List[Dict[str, Any]]:
+        """根据股票代码列表批量获取股票信息.
+
+        Args:
+            tickers: 股票代码列表
+
+        Returns:
+            股票信息列表
+        """
+        upper_tickers = [ticker.upper() for ticker in tickers]
+        cursor = self.collection.find({"ticker": {"$in": upper_tickers}})
+        stocks = []
+        async for stock in cursor:
+            stocks.append(stock_from_dict(stock))
+        return stocks
+
+    async def get_all_stocks(self) -> List[Dict[str, Any]]:
+        """获取所有股票.
+
+        Returns:
+            股票信息列表
+        """
+        cursor = self.collection.find({})
+        stocks = []
+        async for stock in cursor:
+            stocks.append(stock_from_dict(stock))
+        return stocks
+
     async def query_stocks(
         self, params: StockQueryParams
     ) -> Dict[str, Any]:

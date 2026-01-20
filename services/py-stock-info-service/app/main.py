@@ -12,7 +12,7 @@ from app.models.schedule import init_schedule_indexes
 from app.models.kline_data import init_kline_data_collection
 from app.models.data_quality import init_data_quality_logs_collection
 from app.models.indicator_data import ensure_indicator_data_collection
-from app.routers import stocks, schedules, providers
+from app.routers import stocks, schedules, providers, historical_data, indicators
 from app.database import get_database
 from app.services.scheduler_service import get_scheduler_service
 from app.services.providers.initializer import initialize_providers
@@ -120,6 +120,8 @@ app.add_middleware(
 app.include_router(stocks.router)
 app.include_router(schedules.router)
 app.include_router(providers.router)
+app.include_router(historical_data.router)  # 历史数据路由
+app.include_router(indicators.router)  # 技术指标路由
 
 
 @app.get("/")
