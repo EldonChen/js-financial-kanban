@@ -136,7 +136,8 @@ export class StocksController {
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 20;
-    const isActiveBool = isActive === 'true' ? true : isActive === 'false' ? false : undefined;
+    const isActiveBool =
+      isActive === 'true' ? true : isActive === 'false' ? false : undefined;
     return this.stocksService.getSchedules({
       page: pageNum,
       page_size: pageSizeNum,
@@ -161,16 +162,19 @@ export class StocksController {
   }
 
   @Post('schedules')
-  async createSchedule(@Body() scheduleData: {
-    schedule_type: 'cron' | 'interval';
-    schedule_config: {
-      cron?: string;
-      interval?: number;
-    };
-    is_active?: boolean;
-    ticker?: string;
-    name?: string;
-  }) {
+  async createSchedule(
+    @Body()
+    scheduleData: {
+      schedule_type: 'cron' | 'interval';
+      schedule_config: {
+        cron?: string;
+        interval?: number;
+      };
+      is_active?: boolean;
+      ticker?: string;
+      name?: string;
+    },
+  ) {
     return this.stocksService.createSchedule(scheduleData);
   }
 

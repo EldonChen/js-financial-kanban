@@ -70,20 +70,21 @@ export class StockInfoClient {
       if (params?.page) queryParams.page = params.page;
       if (params?.pageSize) queryParams.page_size = params.pageSize;
 
-      const response: AxiosResponse<
-        StockApiResponse<PaginatedStocksResponse>
-      > = await firstValueFrom(
-        this.httpService.get(`${this.baseUrl}/api/v1/stocks`, {
-          params: queryParams,
-        }),
+      const response: AxiosResponse<StockApiResponse<PaginatedStocksResponse>> =
+        await firstValueFrom(
+          this.httpService.get(`${this.baseUrl}/api/v1/stocks`, {
+            params: queryParams,
+          }),
+        );
+      return (
+        response.data.data || {
+          items: [],
+          total: 0,
+          page: params?.page || 1,
+          page_size: params?.pageSize || 20,
+          total_pages: 0,
+        }
       );
-      return response.data.data || {
-        items: [],
-        total: 0,
-        page: params?.page || 1,
-        page_size: params?.pageSize || 20,
-        total_pages: 0,
-      };
     } catch (error) {
       console.error('StockInfoClient.getStocks error:', error);
       throw error;
@@ -96,23 +97,29 @@ export class StockInfoClient {
    */
   async getAllStocks(): Promise<Stock[]> {
     try {
-      const response: AxiosResponse<StockApiResponse<PaginatedStocksResponse | Stock[]>> =
-        await firstValueFrom(
-          this.httpService.get(`${this.baseUrl}/api/v1/stocks`),
-        );
-      
+      const response: AxiosResponse<
+        StockApiResponse<PaginatedStocksResponse | Stock[]>
+      > = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/api/v1/stocks`),
+      );
+
       const data = response.data.data;
-      
+
       // 如果返回的是分页格式（包含 items 字段），提取 items 数组
-      if (data && typeof data === 'object' && 'items' in data && Array.isArray((data as PaginatedStocksResponse).items)) {
+      if (
+        data &&
+        typeof data === 'object' &&
+        'items' in data &&
+        Array.isArray((data as PaginatedStocksResponse).items)
+      ) {
         return (data as PaginatedStocksResponse).items;
       }
-      
+
       // 如果返回的是数组，直接返回
       if (Array.isArray(data)) {
         return data;
       }
-      
+
       // 否则返回空数组
       return [];
     } catch (error) {
@@ -166,7 +173,10 @@ export class StockInfoClient {
           `股票更新超时：${ticker} 的数据更新操作超过 ${error.config?.timeout || 60000}ms，请稍后重试`,
         );
         (timeoutError as any).code = 'STOCK_UPDATE_TIMEOUT';
-        console.error(`StockInfoClient.upsertStock(${ticker}) timeout:`, timeoutError.message);
+        console.error(
+          `StockInfoClient.upsertStock(${ticker}) timeout:`,
+          timeoutError.message,
+        );
         throw timeoutError;
       }
       if (error.response) {
@@ -176,7 +186,10 @@ export class StockInfoClient {
         );
         (httpError as any).status = error.response.status;
         (httpError as any).code = 'STOCK_UPDATE_HTTP_ERROR';
-        console.error(`StockInfoClient.upsertStock(${ticker}) HTTP error:`, httpError.message);
+        console.error(
+          `StockInfoClient.upsertStock(${ticker}) HTTP error:`,
+          httpError.message,
+        );
         throw httpError;
       }
       if (error.request) {
@@ -185,7 +198,10 @@ export class StockInfoClient {
           `股票更新失败：无法连接到股票信息服务 (${this.baseUrl})，请检查服务是否运行`,
         );
         (networkError as any).code = 'STOCK_UPDATE_NETWORK_ERROR';
-        console.error(`StockInfoClient.upsertStock(${ticker}) network error:`, networkError.message);
+        console.error(
+          `StockInfoClient.upsertStock(${ticker}) network error:`,
+          networkError.message,
+        );
         throw networkError;
       }
       // 其他错误
@@ -226,11 +242,13 @@ export class StockInfoClient {
       > = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/api/v1/providers/status`),
       );
-      return response.data.data || {
-        total_providers: 0,
-        providers: {},
-        market_coverage: {},
-      };
+      return (
+        response.data.data || {
+          total_providers: 0,
+          providers: {},
+          market_coverage: {},
+        }
+      );
     } catch (error) {
       console.error('StockInfoClient.getProviderStatus error:', error);
       throw error;
@@ -255,7 +273,8 @@ export class StockInfoClient {
       const queryParams: Record<string, any> = {};
       if (params?.page) queryParams.page = params.page;
       if (params?.page_size) queryParams.page_size = params.page_size;
-      if (params?.is_active !== undefined) queryParams.is_active = params.is_active;
+      if (params?.is_active !== undefined)
+        queryParams.is_active = params.is_active;
 
       const response: AxiosResponse<
         StockApiResponse<{
@@ -270,13 +289,15 @@ export class StockInfoClient {
           params: queryParams,
         }),
       );
-      return response.data.data || {
-        items: [],
-        total: 0,
-        page: params?.page || 1,
-        page_size: params?.page_size || 20,
-        total_pages: 0,
-      };
+      return (
+        response.data.data || {
+          items: [],
+          total: 0,
+          page: params?.page || 1,
+          page_size: params?.page_size || 20,
+          total_pages: 0,
+        }
+      );
     } catch (error) {
       console.error('StockInfoClient.getSchedules error:', error);
       throw error;
@@ -303,12 +324,14 @@ export class StockInfoClient {
       > = await firstValueFrom(
         this.httpService.get(`${this.baseUrl}/api/v1/schedules/status`),
       );
-      return response.data.data || {
-        total: 0,
-        active: 0,
-        inactive: 0,
-        next_run_count: 0,
-      };
+      return (
+        response.data.data || {
+          total: 0,
+          active: 0,
+          inactive: 0,
+          next_run_count: 0,
+        }
+      );
     } catch (error) {
       console.error('StockInfoClient.getScheduleStatus error:', error);
       throw error;
@@ -328,7 +351,10 @@ export class StockInfoClient {
         );
       return response.data.data;
     } catch (error) {
-      console.error(`StockInfoClient.toggleSchedule(${scheduleId}) error:`, error);
+      console.error(
+        `StockInfoClient.toggleSchedule(${scheduleId}) error:`,
+        error,
+      );
       throw error;
     }
   }
@@ -339,10 +365,15 @@ export class StockInfoClient {
   async deleteSchedule(scheduleId: string): Promise<void> {
     try {
       await firstValueFrom(
-        this.httpService.delete(`${this.baseUrl}/api/v1/schedules/${scheduleId}`),
+        this.httpService.delete(
+          `${this.baseUrl}/api/v1/schedules/${scheduleId}`,
+        ),
       );
     } catch (error) {
-      console.error(`StockInfoClient.deleteSchedule(${scheduleId}) error:`, error);
+      console.error(
+        `StockInfoClient.deleteSchedule(${scheduleId}) error:`,
+        error,
+      );
       throw error;
     }
   }
@@ -399,14 +430,18 @@ export class StockInfoClient {
 
       // 使用 axios 获取流式响应
       const response = await firstValueFrom(
-        this.httpService.post(url, {}, {
-          responseType: 'stream',
-          headers: {
-            'Accept': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
+        this.httpService.post(
+          url,
+          {},
+          {
+            responseType: 'stream',
+            headers: {
+              Accept: 'text/event-stream',
+              'Cache-Control': 'no-cache',
+              Connection: 'keep-alive',
+            },
           },
-        }),
+        ),
       );
 
       // 将后端流转发给前端

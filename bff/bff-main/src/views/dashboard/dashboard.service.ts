@@ -3,7 +3,6 @@ import { PythonClient } from '../../clients/python.client';
 import { NodeClient } from '../../clients/node.client';
 import { RustClient } from '../../clients/rust.client';
 import { StockInfoClient } from '../../clients/stock-info.client';
-import { allSettledWithNull } from '../../common/utils/promise.util';
 
 export interface DashboardData {
   stats: {
@@ -82,7 +81,7 @@ export class DashboardService {
         .filter((t) => t)
         .map((t) => new Date(t).getTime())
         .filter((t) => !isNaN(t));
-      
+
       if (createdTimes.length > 0) {
         // 取最早的时间（全量更新时所有股票会在同一时间创建）
         const earliestTime = Math.min(...createdTimes);

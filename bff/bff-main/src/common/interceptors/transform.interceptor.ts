@@ -15,22 +15,23 @@ export interface Response<T> {
 }
 
 @Injectable()
-export class TransformInterceptor<T>
-  implements NestInterceptor<T, Response<T>>
-{
+export class TransformInterceptor<T> implements NestInterceptor<
+  T,
+  Response<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
   ): Observable<Response<T>> {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
-    
+
     // 如果是 SSE 请求（路径包含 fetch-all），跳过拦截器
     // 或者如果响应头已经发送（说明已经手动处理），也跳过拦截器
     if (request.url?.includes('fetch-all') || response.headersSent) {
       return next.handle();
     }
-    
+
     return next.handle().pipe(
       map((data) => ({
         code: 200,

@@ -2165,5 +2165,166 @@ export function useStockHistory(ticker: Ref<string>) {
 ---
 
 **更新时间**：2025-01-20  
-**项目版本**：0.3.0  
-**阶段**：Phase 3 数据支持模块（历史数据和技术指标）前端基础实现完成
+**项目版本**：0.3.1  
+**阶段**：Phase 3 数据支持模块 BFF 层实现完成
+
+## 变更记录 - 数据支持模块 BFF 层实现完成
+
+### 主要变更点
+- 实现了历史数据视图和技术指标视图的 BFF 层
+- 创建了 HTTP 客户端用于调用后台服务
+- 实现了 SSE 代理功能，支持实时进度推送
+- 所有代码通过编译和 lint 检查
+
+### 详细变更说明
+
+#### HTTP 客户端实现（2个）
+
+1. **历史数据服务客户端** (`bff/bff-main/src/clients/historical-data.client.ts`)：
+   - `getKlineData` - 获取历史K线数据
+   - `updateKlineData` - 更新历史K线数据
+   - `getKlineDataStatistics` - 获取统计数据
+   - `deleteKlineData` - 删除历史数据
+   - 完善的错误处理和超时配置
+
+2. **技术指标服务客户端** (`bff/bff-main/src/clients/indicators.client.ts`)：
+   - `getSupportedIndicators` - 获取支持的指标列表
+   - `calculateIndicator` - 计算技术指标
+   - `queryIndicatorData` - 查询技术指标数据
+   - 完善的错误处理和超时配置
+
+#### 历史数据视图实现（6个接口）
+
+**服务层** (`historical-data.service.ts`)：
+- `getKlineData` - 获取历史数据（支持分页/非分页模式）
+- `updateKlineData` - 更新历史数据
+- `getKlineDataStatistics` - 获取统计信息
+- `deleteKlineData` - 删除历史数据
+- `batchUpdateKlineDataSSE` - 批量更新（SSE 代理）
+- `fullUpdateKlineDataSSE` - 全量更新（SSE 代理）
+
+**控制器层** (`historical-data.controller.ts`)：
+- `GET /api/bff/v1/views/historical-data/:ticker` - 获取历史数据
+- `GET /api/bff/v1/views/historical-data/:ticker/statistics` - 获取统计
+- `POST /api/bff/v1/views/historical-data/:ticker/update` - 更新数据
+- `GET /api/bff/v1/views/historical-data/batch` - 批量更新（SSE）
+- `GET /api/bff/v1/views/historical-data/full-update` - 全量更新（SSE）
+- `DELETE /api/bff/v1/views/historical-data/:ticker` - 删除数据
+
+#### 技术指标视图实现（4个接口）
+
+**服务层** (`indicators.service.ts`)：
+- `getSupportedIndicators` - 获取支持的指标列表
+- `calculateIndicator` - 计算技术指标
+- `queryIndicatorData` - 查询指标数据（支持分页/非分页模式）
+- `batchCalculateIndicatorsSSE` - 批量计算（SSE 代理）
+
+**控制器层** (`indicators.controller.ts`)：
+- `GET /api/bff/v1/views/indicators/supported` - 获取支持的指标
+- `POST /api/bff/v1/views/indicators/:ticker/calculate` - 计算指标
+- `GET /api/bff/v1/views/indicators/:ticker` - 获取指标数据
+- `GET /api/bff/v1/views/indicators/batch-calculate` - 批量计算（SSE）
+
+#### 模块注册
+
+- 更新 `clients.module.ts` 注册新客户端
+- 更新 `views.module.ts` 注册新视图模块
+- 创建 `historical-data.module.ts` 和 `indicators.module.ts`
+
+### 技术亮点
+
+1. **分页逻辑智能切换**：
+   - 根据是否有 `page` 或 `page_size` 参数，自动切换分页/非分页模式
+   - 分页模式：返回 `{ items, total, page, page_size, total_pages }`
+   - 非分页模式：返回 `{ ticker, period, count, data }`
+
+2. **SSE 代理实现**：
+   - 使用 axios 接收后台服务的 SSE 流
+   - 将流转发给前端，支持实时进度追踪
+   - 完善的错误处理和超时处理
+
+3. **参数验证**：
+   - 使用 NestJS 的 `ParseIntPipe` 和 `ParseBoolPipe` 进行参数验证
+   - 使用 `DefaultValuePipe` 提供默认值
+
+4. **错误处理**：
+   - 允许部分失败，返回空数据而不是抛出错误
+   - 详细的错误日志记录
+
+### 关键代码片段
+
+**分页逻辑实现**:
+```typescript
+async getKlineData(ticker: string, params?: HistoricalDataQueryParams) {
+  const hasPagination = params?.page !== undefined || params?.page_size !== undefined;
+  const data = await this.historicalDataClient.getKlineData(ticker, params);
+  
+  if (hasPagination) {
+    return { items: data, total, page, page_size, total_pages };
+  } else {
+    return { ticker, period, count, data };
+  }
+}
+```
+
+**SSE 代理实现**:
+```typescript
+async batchUpdateKlineDataSSE(tickers: string[], params: any, res: Response) {
+  const url = `${this.baseUrl}/api/v1/historical-data/batch`;
+  const response = await firstValueFrom(
+    this.httpService.get(url, { responseType: 'stream', ... })
+  );
+  response.data.pipe(res);  // 将后端流转发给前端
+}
+```
+
+### 验收标准检查
+
+#### ✅ HTTP 客户端
+- [x] 历史数据客户端可以正常调用后台服务（4个方法）
+- [x] 技术指标客户端可以正常调用后台服务（3个方法）
+- [x] 错误处理完善
+
+#### ✅ 历史数据视图
+- [x] 6个 API 接口实现完成
+- [x] 分页和非分页模式都正常
+- [x] 请求参数验证正确
+- [x] SSE 代理正常工作
+
+#### ✅ 技术指标视图
+- [x] 4个 API 接口实现完成
+- [x] 分页和非分页模式都正常
+- [x] 请求参数验证正确
+- [x] SSE 代理正常工作
+
+#### ✅ 代码质量
+- [x] 所有代码通过编译检查
+- [x] 所有代码通过 lint 检查
+- [x] 模块可以正常启动
+- [x] 向后兼容性保证
+
+### 注意事项
+
+1. **SSE 接口使用 GET 方法**：
+   - EventSource API 只支持 GET 请求
+   - 所有 SSE 接口都使用 GET 方法而非 POST
+
+2. **后台服务依赖**：
+   - BFF 层已实现完成，等待后台服务准备好
+   - 前端可以继续使用 Mock 模式，直到后台服务准备好
+   - 前端只需要切换环境变量 `NUXT_PUBLIC_USE_DATA_SUPPORT_MOCK=false` 即可切换到真实 BFF
+
+3. **数据质量和同步功能暂缓**：
+   - 根据前端实际需求，数据质量检查和数据同步功能暂缓实施
+   - 优先完成核心的历史数据和技术指标功能
+
+4. **下一步工作**：
+   - 后台服务层实现（历史数据服务、技术指标服务）
+   - 前端切换到真实 BFF（修改环境变量）
+   - 端到端集成测试
+
+---
+
+**更新时间**：2025-01-20  
+**项目版本**：0.3.1  
+**阶段**：Phase 3 数据支持模块 BFF 层实现完成

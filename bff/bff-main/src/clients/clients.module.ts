@@ -4,6 +4,8 @@ import { PythonClient } from './python.client';
 import { NodeClient } from './node.client';
 import { RustClient } from './rust.client';
 import { StockInfoClient } from './stock-info.client';
+import { HistoricalDataClient } from './historical-data.client';
+import { IndicatorsClient } from './indicators.client';
 
 @Module({
   imports: [
@@ -12,7 +14,21 @@ import { StockInfoClient } from './stock-info.client';
       maxRedirects: parseInt(process.env.HTTP_MAX_REDIRECTS || '5', 10),
     }),
   ],
-  providers: [PythonClient, NodeClient, RustClient, StockInfoClient],
-  exports: [PythonClient, NodeClient, RustClient, StockInfoClient],
+  providers: [
+    PythonClient,
+    NodeClient,
+    RustClient,
+    StockInfoClient,
+    HistoricalDataClient,
+    IndicatorsClient,
+  ],
+  exports: [
+    PythonClient,
+    NodeClient,
+    RustClient,
+    StockInfoClient,
+    HistoricalDataClient,
+    IndicatorsClient,
+  ],
 })
 export class ClientsModule {}

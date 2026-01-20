@@ -67,14 +67,15 @@ export function transformRustItem(item: RustItem): UnifiedItem {
 /**
  * 合并并去重 Items（按 name 去重，保留最新的）
  */
-export function mergeAndDeduplicateItems(
-  items: UnifiedItem[],
-): UnifiedItem[] {
+export function mergeAndDeduplicateItems(items: UnifiedItem[]): UnifiedItem[] {
   const itemMap = new Map<string, UnifiedItem>();
 
   for (const item of items) {
     const existing = itemMap.get(item.name);
-    if (!existing || new Date(item.updated_at) > new Date(existing.updated_at)) {
+    if (
+      !existing ||
+      new Date(item.updated_at) > new Date(existing.updated_at)
+    ) {
       itemMap.set(item.name, item);
     }
   }

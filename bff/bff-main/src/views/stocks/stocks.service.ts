@@ -164,7 +164,10 @@ export class StocksService {
     try {
       return await this.stockInfoClient.toggleSchedule(scheduleId);
     } catch (error) {
-      console.error(`StocksService.toggleSchedule(${scheduleId}) error:`, error);
+      console.error(
+        `StocksService.toggleSchedule(${scheduleId}) error:`,
+        error,
+      );
       throw error;
     }
   }
@@ -176,7 +179,10 @@ export class StocksService {
     try {
       await this.stockInfoClient.deleteSchedule(scheduleId);
     } catch (error) {
-      console.error(`StocksService.deleteSchedule(${scheduleId}) error:`, error);
+      console.error(
+        `StocksService.deleteSchedule(${scheduleId}) error:`,
+        error,
+      );
       throw error;
     }
   }

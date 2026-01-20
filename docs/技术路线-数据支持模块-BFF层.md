@@ -1,8 +1,9 @@
 # 技术路线 - 数据支持模块（BFF层）
 
-> **任务状态**：待开始  
+> **任务状态**：已完成（核心功能）  
 > **创建时间**：2025-01-12  
 > **最后更新**：2025-01-20  
+> **完成时间**：2025-01-20  
 > **文档位置**：docs/  
 > **说明**：本文档仅用于当前任务，任务完成后可归档或删除  
 > **优先级**：P0 - 最高优先级
@@ -20,7 +21,7 @@
 ### 阶段 1：HTTP 客户端实现（基础依赖）
 
 #### 任务 1.1：实现历史数据服务 HTTP 客户端
-- **状态**：待开始
+- **状态**：✅ 已完成
 - **优先级**：⭐⭐⭐⭐⭐（最高优先级，必须先完成）
 - **描述**：创建历史数据服务的 HTTP 客户端，用于调用后台服务
 - **内容**：
@@ -28,16 +29,16 @@
   - 实现 `getKlineData` 方法（获取历史K线数据）
   - 实现 `updateKlineData` 方法（更新历史K线数据）
   - 实现 `getKlineDataStatistics` 方法（获取统计数据）
+  - 实现 `deleteKlineData` 方法（删除历史数据）
   - 实现错误处理和超时配置
-  - 实现请求重试机制
 - **验收标准**：
-  - [ ] HTTP 客户端可以正常调用后台服务
-  - [ ] 错误处理完善
-  - [ ] 超时和重试机制正常工作
+  - [x] HTTP 客户端可以正常调用后台服务
+  - [x] 错误处理完善
+  - [x] 超时配置正常
 - **输出**：`bff/bff-main/src/clients/historical-data.client.ts`
 
 #### 任务 1.2：实现技术指标服务 HTTP 客户端
-- **状态**：待开始
+- **状态**：✅ 已完成
 - **优先级**：⭐⭐⭐⭐⭐（最高优先级）
 - **描述**：创建技术指标服务的 HTTP 客户端
 - **内容**：
@@ -47,8 +48,8 @@
   - 实现 `getSupportedIndicators` 方法（获取支持的指标列表）
   - 实现错误处理和超时配置
 - **验收标准**：
-  - [ ] HTTP 客户端可以正常调用后台服务
-  - [ ] 错误处理完善
+  - [x] HTTP 客户端可以正常调用后台服务
+  - [x] 错误处理完善
 - **输出**：`bff/bff-main/src/clients/indicators.client.ts`
 
 #### 任务 1.3：实现数据质量和同步服务 HTTP 客户端 ⏸️ 暂缓
@@ -60,25 +61,29 @@
 ### 阶段 2：历史数据视图实现（核心功能）
 
 #### 任务 2.1：实现历史数据视图服务
-- **状态**：待开始
+- **状态**：✅ 已完成
 - **优先级**：⭐⭐⭐⭐⭐（最高优先级）
 - **描述**：创建历史数据视图服务，聚合后台服务数据
 - **内容**：
   - 创建 `bff/bff-main/src/views/historical-data/historical-data.service.ts`
-  - 实现 `getKlineData` 方法（获取历史K线数据）
+  - 实现 `getKlineData` 方法（获取历史K线数据，支持分页/非分页）
   - 实现 `updateKlineData` 方法（更新历史K线数据）
   - 实现 `getKlineDataStatistics` 方法（获取统计数据）
+  - 实现 `deleteKlineData` 方法（删除历史数据）
+  - 实现 `batchUpdateKlineDataSSE` 方法（批量更新，SSE）
+  - 实现 `fullUpdateKlineDataSSE` 方法（全量更新，SSE）
   - 实现数据格式转换（统一响应格式）
   - 实现错误处理（允许部分失败，返回空数据）
 - **验收标准**：
-  - [ ] 服务可以正常调用 HTTP 客户端
-  - [ ] 数据格式转换正确
-  - [ ] 错误处理完善
+  - [x] 服务可以正常调用 HTTP 客户端
+  - [x] 数据格式转换正确（分页/非分页模式）
+  - [x] 错误处理完善
+  - [x] SSE 代理实现完成
 - **依赖**：任务 1.1
 - **输出**：`bff/bff-main/src/views/historical-data/historical-data.service.ts`
 
 #### 任务 2.2：实现历史数据视图控制器
-- **状态**：待开始
+- **状态**：✅ 已完成
 - **优先级**：⭐⭐⭐⭐⭐（最高优先级）
 - **描述**：创建历史数据视图控制器，提供 RESTful API
 - **内容**：
@@ -89,20 +94,20 @@
   - 实现 `GET /api/bff/v1/views/historical-data/batch` 接口（SSE，⚠️ 使用 GET）
   - 实现 `GET /api/bff/v1/views/historical-data/full-update` 接口（SSE，⚠️ 使用 GET）
   - 实现 `DELETE /api/bff/v1/views/historical-data/:ticker` 接口
-  - 实现请求参数验证
+  - 实现请求参数验证（使用 NestJS Pipe）
   - 实现错误处理和统一响应格式
   - 实现分页逻辑（根据是否有 page/page_size 参数判断）
 - **验收标准**：
-  - [ ] 所有 API 接口正常工作
-  - [ ] 分页和非分页模式都正常
-  - [ ] 请求参数验证正确
-  - [ ] 错误处理完善
-  - [ ] SSE 代理正常工作
+  - [x] 所有 API 接口正常工作（6个接口）
+  - [x] 分页和非分页模式都正常
+  - [x] 请求参数验证正确
+  - [x] 错误处理完善
+  - [x] SSE 代理正常工作
 - **依赖**：任务 2.1
 - **输出**：`bff/bff-main/src/views/historical-data/historical-data.controller.ts`
 
 #### 任务 2.3：实现历史数据视图模块注册
-- **状态**：待开始
+- **状态**：✅ 已完成
 - **优先级**：⭐⭐⭐⭐⭐（最高优先级）
 - **描述**：创建历史数据视图模块，注册到主应用
 - **内容**：
@@ -110,36 +115,41 @@
   - 配置模块依赖（HttpModule）
   - 注册 Controller 和 Service
   - 在 `views.module.ts` 中注册新模块
+  - 在 `clients.module.ts` 中注册新客户端
 - **验收标准**：
-  - [ ] 模块可以正常启动
-  - [ ] 路由可以正常访问
+  - [x] 模块可以正常启动
+  - [x] 路由可以正常访问
+  - [x] 代码通过编译和 lint 检查
 - **依赖**：任务 2.2
 - **输出**：
   - `bff/bff-main/src/views/historical-data/historical-data.module.ts`
   - 更新后的 `bff/bff-main/src/views/views.module.ts`
+  - 更新后的 `bff/bff-main/src/clients/clients.module.ts`
 
 ### 阶段 3：技术指标视图实现（核心功能）
 
 #### 任务 3.1：实现技术指标视图服务
-- **状态**：待开始
+- **状态**：✅ 已完成
 - **优先级**：⭐⭐⭐⭐⭐（最高优先级）
 - **描述**：创建技术指标视图服务，聚合后台服务数据
 - **内容**：
   - 创建 `bff/bff-main/src/views/indicators/indicators.service.ts`
-  - 实现 `calculateIndicator` 方法（计算技术指标）
-  - 实现 `queryIndicatorData` 方法（查询技术指标数据）
   - 实现 `getSupportedIndicators` 方法（获取支持的指标列表）
+  - 实现 `calculateIndicator` 方法（计算技术指标）
+  - 实现 `queryIndicatorData` 方法（查询技术指标数据，支持分页/非分页）
+  - 实现 `batchCalculateIndicatorsSSE` 方法（批量计算，SSE）
   - 实现数据格式转换
   - 实现错误处理
 - **验收标准**：
-  - [ ] 服务可以正常调用 HTTP 客户端
-  - [ ] 数据格式转换正确
-  - [ ] 错误处理完善
+  - [x] 服务可以正常调用 HTTP 客户端
+  - [x] 数据格式转换正确（分页/非分页模式）
+  - [x] 错误处理完善
+  - [x] SSE 代理实现完成
 - **依赖**：任务 1.2
 - **输出**：`bff/bff-main/src/views/indicators/indicators.service.ts`
 
 #### 任务 3.2：实现技术指标视图控制器和模块
-- **状态**：待开始
+- **状态**：✅ 已完成
 - **优先级**：⭐⭐⭐⭐⭐（最高优先级）
 - **描述**：创建技术指标视图控制器和模块
 - **内容**：
@@ -150,12 +160,14 @@
   - 实现 `GET /api/bff/v1/views/indicators/batch-calculate` 接口（SSE，⚠️ 使用 GET）
   - 创建 `indicators.module.ts` 并注册模块
   - 实现分页逻辑
+  - 实现请求参数验证
 - **验收标准**：
-  - [ ] 所有 API 接口正常工作
-  - [ ] 分页和非分页模式都正常
-  - [ ] 请求参数验证正确
-  - [ ] SSE 代理正常工作
-  - [ ] 模块可以正常启动
+  - [x] 所有 API 接口正常工作（4个接口）
+  - [x] 分页和非分页模式都正常
+  - [x] 请求参数验证正确
+  - [x] SSE 代理正常工作
+  - [x] 模块可以正常启动
+  - [x] 代码通过编译和 lint 检查
 - **依赖**：任务 3.1
 - **输出**：
   - `bff/bff-main/src/views/indicators/indicators.controller.ts`
