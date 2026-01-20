@@ -9,6 +9,8 @@ from app.config import settings
 from app.database import connect_to_mongo, close_mongo_connection
 from app.models.stock import init_stock_indexes
 from app.models.schedule import init_schedule_indexes
+from app.models.kline_data import init_kline_data_collection
+from app.models.data_quality import init_data_quality_logs_collection
 from app.routers import stocks, schedules, providers
 from app.services.scheduler_service import get_scheduler_service
 from app.services.providers.initializer import initialize_providers
@@ -58,6 +60,10 @@ async def lifespan(app: FastAPI):
     # 初始化索引
     await init_stock_indexes()
     await init_schedule_indexes()
+    
+    # 初始化历史数据相关集合
+    await init_kline_data_collection()
+    await init_data_quality_logs_collection()
 
     # 初始化数据源提供者
     initialize_providers(
