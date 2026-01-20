@@ -11,7 +11,9 @@ from app.models.stock import init_stock_indexes
 from app.models.schedule import init_schedule_indexes
 from app.models.kline_data import init_kline_data_collection
 from app.models.data_quality import init_data_quality_logs_collection
+from app.models.indicator_data import ensure_indicator_data_collection
 from app.routers import stocks, schedules, providers
+from app.database import get_database
 from app.services.scheduler_service import get_scheduler_service
 from app.services.providers.initializer import initialize_providers
 
@@ -64,6 +66,10 @@ async def lifespan(app: FastAPI):
     # 初始化历史数据相关集合
     await init_kline_data_collection()
     await init_data_quality_logs_collection()
+    
+    # 初始化技术指标数据 TimeSeries Collection
+    db = get_database()
+    await ensure_indicator_data_collection(db)
 
     # 初始化数据源提供者
     initialize_providers(
