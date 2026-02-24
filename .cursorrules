@@ -205,11 +205,11 @@
    - 避免复杂依赖：优先拆分为可并行或简单串行的任务
 
 3. **获取项目信息**：
-   - 使用 `mcp_vibe_kanban_list_projects` 获取项目列表
+   - 使用 `list_projects` 获取项目列表
    - 确定当前项目 ID（默认：js-financial-kanban 项目）
 
 4. **创建任务**：
-   - 使用 `mcp_vibe_kanban_create_task` 创建任务
+   - 使用 `create_task`（或 Cursor 中的 `create_issue`）创建任务
    - 提供清晰的任务标题和描述（遵循任务描述规范）
    - 如果已拆分，为每个独立功能模块创建独立任务
    - 在任务描述中说明任务边界和验收标准（避免复杂依赖）
@@ -291,17 +291,32 @@
 
 #### MCP 工具使用说明
 
-可用的 MCP 工具：
-- `mcp_vibe_kanban_list_projects` - 获取项目列表
-- `mcp_vibe_kanban_list_tasks` - 获取任务列表
-- `mcp_vibe_kanban_create_task` - 创建任务（需要 `project_id` 和 `title`）
-- `mcp_vibe_kanban_get_task` - 获取任务详情
-- `mcp_vibe_kanban_update_task` - 更新任务（状态、标题、描述等）
-- `mcp_vibe_kanban_delete_task` - 删除任务
+以下与官方 [Vibe Kanban MCP 文档](https://www.vibekanban.com/docs/integrations/vibe-kanban-mcp-server#available-mcp-tools) 一致。在 Cursor 中可能以 `list_issues`/`create_issue` 等名称暴露（与“任务”等价）。
+
+**项目与上下文**
+- `list_projects` — 获取所有项目（无必填参数）
+- `list_repos` — 列出项目内仓库（必填：`project_id`）
+- `get_context` — 获取当前工作区上下文（仅在活跃工作区会话内可用）
+
+**任务管理**
+- `list_tasks` / `list_issues` — 列出项目任务（必填：`project_id`；可选：`status`、`limit`）
+- `create_task` / `create_issue` — 创建任务（必填：`project_id`、`title`；可选：`description`）
+- `get_task` / `get_issue` — 获取任务详情（必填：`task_id`；返回含标签、关联、子任务等）
+- `update_task` / `update_issue` — 更新任务（必填：`task_id`；可选：`title`、`description`、`status`）
+- `delete_task` / `delete_issue` — 删除任务（必填：`task_id`）
+
+**仓库管理**
+- `get_repo` — 获取仓库详情（含 setup/cleanup/dev server 脚本）（必填：`repo_id`）
+- `update_setup_script` — 更新仓库的 setup 脚本（必填：`repo_id`；可选：`script`）
+- `update_cleanup_script` — 更新仓库的 cleanup 脚本（必填：`repo_id`；可选：`script`）
+- `update_dev_server_script` — 更新仓库的 dev server 脚本（必填：`repo_id`；可选：`script`）
+
+**任务执行**
+- `start_workspace_session` — 用编程代理开始处理任务（必填：`task_id`、`executor`、`repos`；可选：`variant`）。`repos` 为对象数组：`{ repo_id, base_branch }`。支持的 executor 示例：`cursor_agent`、`claude-code`、`amp`、`gemini` 等。
 
 **重要提示**：
-- 创建任务时，**必须提供 `project_id`**
-- 可以通过 `list_projects` 获取项目 ID
+- 创建任务时，**必须提供 `project_id`**，可通过 `list_projects` 获取项目 ID
+- 任务/Issue 可能有 `simple_id`（如 `PROJ-42`），便于人工引用
 
 ---
 
