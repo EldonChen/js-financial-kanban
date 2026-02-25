@@ -1,0 +1,206 @@
+# 数据源服务 API 契约 - OpenAPI 3.0 草稿
+# 与《数据源服务-设计与契约.md》第 2 节对应，供实现与 Mock 使用
+
+openapi: 3.0.3
+info:
+  title: 数据源服务 API
+  description: 统一数据根基，提供股票元信息、股票列表、历史 K 线等能力
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+    description: 默认 Base URL
+
+tags:
+  - name: stocks
+    description: 股票元信息与列表
+  - name: kline
+    description: 历史 K 线
+  - name: providers
+    description: 数据源状态
+
+paths:
+  /stocks/{ticker}:
+    get:
+      tags: [stocks]
+      summary: 获取单只股票元信息
+      parameters:
+        - name: ticker
+          in: path
+          required: true
+          schema: { type: string, example: "000001" }
+        - name: market
+          in: query
+          schema: { type: string, example: "A股" }
+        - name: data_source
+          in: query
+          schema: { type: string, example: "akshare" }
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+                properties:
+                  data: { $ref: "#/components/schemas/Stock" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /stocks/batch:
+    post:
+      tags: [stocks]
+      summary: 批量获取股票元信息
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tickers]
+              properties:
+                tickers: { type: array, items: { type: string } }
+                market: { type: string }
+                data_source: { type: string }
+      responses:
+        "200":
+          description: 成功，data 为 { ticker: Stock | null }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /stocks/list:
+    get:
+      tags: [stocks]
+      summary: 获取股票代码列表（按市场）
+      parameters:
+        - name: market
+          in: query
+          required: true
+          schema: { type: string, example: "A股" }
+        - name: data_source
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: 成功，data 含 tickers、market、data_source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /kline/{ticker}:
+    get:
+      tags: [kline]
+      summary: 获取历史 K 线
+      parameters:
+        - name: ticker
+          in: path
+          required: true
+          schema: { type: string }
+        - name: period
+          in: query
+          schema: { type: string, default: "1d", enum: ["1m", "5m", "15m", "30m", "60m", "1d", "1w", "1M"] }
+        - name: start_date
+          in: query
+          schema: { type: string, format: date }
+        - name: end_date
+          in: query
+          schema: { type: string, format: date }
+        - name: market
+          in: query
+          schema: { type: string }
+        - name: data_source
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: 成功，data 含 ticker、period、data（K线数组）、data_source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /providers/status:
+    get:
+      tags: [providers]
+      summary: 获取数据源状态
+      responses:
+        "200":
+          description: 成功，data 含 total_providers、providers、market_coverage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+components:
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code: { type: integer, example: 200 }
+        message: { type: string, example: "success" }
+        data: {}
+
+    Stock:
+      type: object
+      required: [ticker, name, data_source]
+      properties:
+        ticker: { type: string }
+        name: { type: string }
+        market: { type: string }
+        market_type: { type: string }
+        sector: { type: string }
+        industry: { type: string }
+        currency: { type: string }
+        exchange: { type: string }
+        country: { type: string }
+        market_cap: { type: number }
+        pe_ratio: { type: number }
+        pb_ratio: { type: number }
+        dividend_yield: { type: number }
+        listing_date: { type: string, format: date-time }
+        data_source: { type: string }
+
+    Kline:
+      type: object
+      required: [date, open, high, low, close, volume]
+      properties:
+        date: { type: string, format: date }
+        timestamp: { type: string, format: date-time }
+        open: { type: number }
+        high: { type: number }
+        low: { type: number }
+        close: { type: number }
+        volume: { type: number }
+        amount: { type: number }
+        adj_close: { type: number }
+        data_source: { type: string }
+
+  responses:
+    NotFound:
+      description: 资源不存在或所有数据源均无数据
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code: { type: integer, example: 404 }
+              message: { type: string }
+              data: { type: "null" }
+    ServiceUnavailable:
+      description: 服务不可用（如所有数据源不可用）
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code: { type: integer, example: 503 }
+              message: { type: string }
+              data: { type: "null" }

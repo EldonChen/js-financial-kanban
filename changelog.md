@@ -2410,6 +2410,35 @@ async batchUpdateKlineDataSSE(tickers: string[], params: any, res: Response) {
 
 ---
 
-**更新时间**：2025-01-20  
+## 变更记录 - 数据源服务设计与契约（设计文档）
+
+### 主要变更点
+- 新增数据源服务设计文档，明确架构、API 契约、数据模型、Provider 抽象与配置
+- 新增 OpenAPI 3.0 草稿，供实现与 Mock 使用
+
+### 详细变更说明
+
+#### 数据源服务设计文档（docs/数据源服务-设计与契约.md）
+- **架构与职责**：数据源服务作为统一数据根基，上游为股票信息服务、历史数据服务、指标服务等；下游为 yfinance、akshare、easyquotation 等外部数据源。职责边界表明确「归属数据源服务」与「非数据源服务」。
+- **与现有 py-stock-info-service 对照**：列出 providers、historical_data_fetcher、stock_service、config 等迁移要点；契约覆盖当前「股票元信息、股票列表、历史 K 线」需求。
+- **对外 API 契约**：能力列表（单只/批量元信息、列表、K 线、providers/status）、路径、请求/响应示例、错误码（200/400/404/429/503）、限流策略约定。
+- **统一数据模型**：Stock（元信息）、Kline（单条 K 线）字段定义；各数据源（yfinance、akshare、easyquotation、tushare）字段映射表。
+- **Provider 抽象**：元信息能力（fetch_stock_info、fetch_stock_list、fetch_stock_batch、is_available）与可选 K 线能力；注册方式、路由规则（按市场、优先级、data_source）、市场与数据源配置矩阵示例。
+- **配置**：启用/禁用、优先级、凭证、超时/重试；环境变量约定与校验规则（至少一个第一优先级数据源、凭证与启用一致）；可选 YAML 配置示例。
+- **验收标准对照表**与**附录：与现有实现的对照表**供实现与迁移检查使用。
+
+#### OpenAPI 草稿（docs/数据源服务-API契约-OpenAPI.yaml）
+- 与设计文档第 2 节对应的 OpenAPI 3.0 草稿，包含 paths、components/schemas（ApiResponse、Stock、Kline）、components/responses（NotFound、ServiceUnavailable）。
+
+### 关键代码片段
+（本次为设计文档产出，无代码变更）
+
+### 注意事项
+- 本文档仅负责设计与契约，不涉及具体实现；实现与验证 issue 可据此执行。
+- 新数据源扩展方式已明确：实现 Provider 接口 + 注册 + 配置项/环境变量。
+
+---
+
+**更新时间**：2025-02-25  
 **项目版本**：0.3.2  
-**阶段**：Phase 3 数据支持模块服务层任务拆分完成
+**阶段**：数据源服务设计与契约文档完成
