@@ -1,0 +1,46 @@
+@startuml Data Service - Sequence (Fetch Stock with Fallback)
+!theme plain
+title 获取股票元信息 - 请求转发与容错序列图
+
+actor Caller as "调用方"
+participant "API\nController" as API
+participant "Application\nService" as App
+participant "Router" as Router
+participant "Registry" as Reg
+participant "Provider A\n(高优先级)" as P1
+participant "Provider B\n(低优先级)" as P2
+
+Caller -> API: GET /stocks/000001?market=A股
+activate API
+API -> App: getStock("000001", market="A股")
+activate App
+
+App -> Router: fetchStockInfo("000001", market="A股")
+activate Router
+
+Router -> Reg: getByMarket("A股", "stock_info")
+activate Reg
+Reg --> Router: [Provider A, Provider B] (按 priority 排序)
+deactivate Reg
+
+Router -> P1: fetchStockInfo("000001", "A股")
+activate P1
+P1 --> Router: null (超时/失败)
+deactivate P1
+
+note over Router: 容错：尝试下一个 Provider
+Router -> P2: fetchStockInfo("000001", "A股")
+activate P2
+P2 --> Router: Stock { ticker, name, ... }
+deactivate P2
+
+Router --> App: Stock
+deactivate Router
+
+App --> API: Stock
+deactivate App
+
+API --> Caller: 200 { code, message, data: Stock }
+deactivate API
+
+@enduml

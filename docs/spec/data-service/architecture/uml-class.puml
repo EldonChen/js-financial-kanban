@@ -1,0 +1,154 @@
+@startuml Data Service - Class Diagram
+!theme plain
+title 数据源服务 - 核心类图（插件式架构）
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+package "API 层" {
+  class DataSourceController <<entry>> {
+    + getStock(ticker, market?, dataSource?)
+    + getStockBatch(body)
+    + getStockList(market, dataSource?)
+    + getKline(ticker, period?, start?, end?, market?, dataSource?)
+    + getProviderStatus()
+  }
+}
+
+package "应用服务层" {
+  class DataSourceApplicationService {
+    - router: IRouter
+    + getStock(...): Stock | null
+    + getStockBatch(...): Record<string, Stock | null>
+    + getStockList(...): string[]
+    + getKline(...): Kline[]
+    + getCapabilities(): CapabilityResponseData
+  }
+}
+
+package "路由/转发层" {
+  interface IRouter {
+    + fetchStockInfo(ticker, market?, dataSource?): Promise<Stock | null>
+    + fetchStockBatch(tickers, market?, dataSource?): Promise<Record<string, Stock | null>>
+    + fetchStockList(market, dataSource?): Promise<string[]>
+    + fetchKline(ticker, period, options?, dataSource?): Promise<Kline[]>
+  }
+  
+  class Router <<implements IRouter>> {
+    - registry: IRegistry
+    + fetchStockInfo(...)
+    + fetchStockBatch(...)
+    + fetchStockList(...)
+    + fetchKline(...)
+  }
+  
+  interface IRegistry {
+    + register(provider): void
+    + getByName(name): T | null
+    + getByMarket(market, feature?): T[]
+    + getAll(): T[]
+  }
+  
+  class Registry <<implements IRegistry>> {
+    - providers: Map<string, Provider>
+    - marketIndex: Map<string, Provider[]>
+    + register(provider)
+    + getByName(name)
+    + getByMarket(market, feature)
+    + getAll()
+  }
+}
+
+package "Provider 层（插件）" {
+  interface IProviderMetadata <<abstract>> {
+    + name: string
+    + supported_markets: string[]
+    + priority: int
+    + features: string[]
+  }
+  
+  interface IStockMetaProvider <<abstract>> {
+    + fetchStockInfo(ticker, market?): Promise<Stock | null>
+    + fetchStockList(market?): Promise<string[]>
+    + fetchStockBatch(tickers, market?): Promise<Record<string, Stock | null>>
+    + isAvailable(): Promise<boolean>
+  }
+  
+  interface IKlineProvider <<abstract>> {
+    + fetchKline(ticker, period, options?): Promise<Kline[]>
+    + isAvailable(): Promise<boolean>
+  }
+  
+  class AkshareProvider {
+    - mapper: IFieldMapper
+    + name: "akshare"
+    + supported_markets: ["A股", "港股", "美股"]
+    + priority: 1
+    + features: ["stock_info", "stock_list", "kline"]
+    + fetchStockInfo(...)
+    + fetchStockList(...)
+    + fetchStockBatch(...)
+    + fetchKline(...)
+    + isAvailable()
+  }
+  
+  class YFinanceProvider {
+    - mapper: IFieldMapper
+    + name: "yfinance"
+    + supported_markets: ["美股", "港股"]
+    + priority: 1
+    + features: ["stock_info", "stock_list", "kline"]
+    + fetchStockInfo(...)
+    + fetchStockList(...)
+    + fetchKline(...)
+    + isAvailable()
+  }
+  
+  interface IFieldMapper <<optional>> {
+    + mapToStock(raw): Stock
+    + mapToKlineList(raw): Kline[]
+  }
+}
+
+package "领域模型" {
+  class Stock <<DTO>> {
+    + ticker: string
+    + name: string
+    + market?: string
+    + data_source: string
+    + ...
+  }
+  class Kline <<DTO>> {
+    + date: string
+    + open: number
+    + high: number
+    + low: number
+    + close: number
+    + volume: number
+    + ...
+  }
+}
+
+' Relations
+DataSourceController --> DataSourceApplicationService : uses
+DataSourceApplicationService --> IRouter : uses
+Router --> IRegistry : uses
+IRouter <|.. Router
+IRegistry <|.. Registry
+
+IProviderMetadata <|.. IStockMetaProvider
+IProviderMetadata <|.. IKlineProvider
+IStockMetaProvider <|.. AkshareProvider
+IStockMetaProvider <|.. YFinanceProvider
+IKlineProvider <|.. AkshareProvider
+IKlineProvider <|.. YFinanceProvider
+
+Registry o--> IStockMetaProvider : holds
+Registry o--> IKlineProvider : holds
+
+AkshareProvider --> IFieldMapper : uses
+YFinanceProvider --> IFieldMapper : uses
+IStockMetaProvider ..> Stock : returns
+IKlineProvider ..> Kline : returns
+
+@enduml
