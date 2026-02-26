@@ -289,22 +289,6 @@
 - [ ] API 文档已更新
 ```
 
-#### MCP 工具使用说明
-
-可用的 MCP 工具：
-- `mcp_vibe_kanban_list_projects` - 获取项目列表
-- `mcp_vibe_kanban_list_tasks` - 获取任务列表
-- `mcp_vibe_kanban_create_task` - 创建任务（需要 `project_id` 和 `title`）
-- `mcp_vibe_kanban_get_task` - 获取任务详情
-- `mcp_vibe_kanban_update_task` - 更新任务（状态、标题、描述等）
-- `mcp_vibe_kanban_delete_task` - 删除任务
-
-**重要提示**：
-- 创建任务时，**必须提供 `project_id`**
-- 可以通过 `list_projects` 获取项目 ID
-
----
-
 ## 🔄 版本控制规范
 
 ### Git 提交策略（重要）

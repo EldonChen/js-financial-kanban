@@ -3,8 +3,8 @@ FROM rust:1.92.0-slim AS builder
 
 # 配置腾讯云镜像源并安装构建依赖（合并到一层以减少层数）
 ENV DEBIAN_FRONTEND=noninteractive
-RUN sed -i "s@http://deb.debian.org/debian@http://mirrors.tencent.com/debian@g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
-    sed -i "s@http://deb.debian.org/debian@http://mirrors.tencent.com/debian@g" /etc/apt/sources.list 2>/dev/null || true && \
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list 2>/dev/null || true && \
     apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
@@ -40,8 +40,8 @@ FROM debian:bookworm-slim
 
 # 配置腾讯云镜像源并安装运行时依赖（合并到一层以减少层数）
 ENV DEBIAN_FRONTEND=noninteractive
-RUN sed -i "s@http://deb.debian.org/debian@http://mirrors.tencent.com/debian@g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
-    sed -i "s@http://deb.debian.org/debian@http://mirrors.tencent.com/debian@g" /etc/apt/sources.list 2>/dev/null || true && \
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list 2>/dev/null || true && \
     apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libssl3 \
