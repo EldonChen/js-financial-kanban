@@ -50,6 +50,7 @@ services/data-source-service/
 │   │       ├── yfinance_mapper.py
 │   │       └── kline_mapper.py  # 通用或按数据源拆分
 │   └── bootstrap.py            # 启动时：加载配置 -> 实例化 Provider -> 注册
+│   # 未来可扩展：app/sdk/、app/mcp/ 等目录，仅依赖 App Service 与 app/api/schemas/（契约模型），不依赖 FastAPI 请求上下文
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py             # 公共 fixture：Registry、Router、mock Provider
@@ -67,6 +68,12 @@ services/data-source-service/
 ├── Dockerfile
 └── docker-compose.yml          # 可选，用于与其它服务一起编排
 ```
+
+## 应用入口与多端扩展
+
+- **业务入口**：`app/services/data_source_app_service` 为应用核心，负责编排 Router、封装为业务接口；当前 REST API（`app/api/routes/*`）只是该入口的**一种适配方式**。
+- **多端扩展**：未来若以 Python SDK（同进程）、JS/Python SDK（HTTP 客户端）或 MCP 等形式对外提供能力，只需**新增对应适配层**（如 `app/sdk/`、`app/mcp/` 或独立服务），复用同一套 App Service 与契约类型（`app/api/schemas/`），**无需修改** domain、router、registry、providers 等核心逻辑。
+- **Bootstrap 与启动**：bootstrap/启动逻辑应支持在**不启动 Web 服务**的情况下创建 Registry、Router 及 App Service 实例（例如通过工厂函数或可复用的初始化函数），以便 SDK/MCP 或独立进程能复用同一套核心逻辑。
 
 ## 与 SPEC 分层的映射
 
